@@ -69,6 +69,50 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
 The button shows only for a Miniflux account signed in with an **API token**, on stories whose feed URL
 starts with `https://news.iupif.org/sectiuni/` (the digest's feeds).
 
+## Highlights
+
+On the same stories, in the reader and in the AI screen (the explanation and each answer), the reader selects text,
+chooses **Highlight** in the selection toolbar and then a color: yellow is an idea, green a fact or definition,
+blue a question, pink a quote (the colors of the vault's reading system, which exports them into notes and Anki
+cards). The passage gets an opaque background per theme mode (at least 7:1 against the text of the app's built-in
+themes, `HighlightPaletteTest`; the wallpaper colors of Material You are not checked). A tap on it opens a sheet to change the color, copy it or remove it. An icon in the top
+bar of both screens lists the story's highlights with Copy and Remove. Other feeds and account types are untouched.
+
+It works on the selection itself, not on paragraphs: Compose foundation 1.13.0-alpha01 (pulled in by material3
+1.5.0-alpha29) has `SelectionContainer(state)` with `SelectionState.selectedTexts` and
+`Modifier.appendTextContextMenuComponents` for the toolbar item. The selection gives the words but not where they are,
+so a highlight is its `text` plus up to 60 characters before and after it (`prefix`, `suffix`), and
+`HighlightAnchoring` finds it again in a block, preferring the occurrence whose context matches. Code:
+`ui/explica/highlights/` and `HighlightsViewModel`. Upstream files touched: `ArticleReaderContent.kt` (the
+`SelectionContainer` line), `ArticleElements.kt` (`TextElement` draws its paragraph's highlights and reports a tap),
+`ArticleTopBar.kt` (the list icon).
+
+Server contract, `POST {EXPLICA_URL}api/highlights` with the Miniflux token as `X-Auth-Token`, JSON in and out, the
+failures 401, 403, 404, 429 and 503 as for `explain` and `ask`; `H` is `{id, text, color, where, prefix, suffix,
+created}` (`created` in unix seconds):
+
+- `{"entry_id": n, "op": "list"}` gives `{"highlights": [H, ...]}`, oldest first.
+- `{"entry_id": n, "op": "add", "text": 1..1000 characters, "color": "yellow"|"green"|"blue"|"pink", "where":
+  "story"|"explanation"|"answer:<n>", "prefix"?, "suffix"?}` gives `{"highlight": H}`; the same `where` and `text`
+  again gives the one that exists. `<n>` is the position of the turn in the story's `chat`, from zero.
+- `{"entry_id": n, "op": "remove", "id": "..."}` gives `{"ok": true}`; an unknown id is 404 (taken as already gone).
+
+Limits of this first version:
+
+- No offline queue. A highlight appears, goes or changes color at once and is put back with a short message when the
+  call fails; a change made without a connection is lost. The list is read again when a screen opens or comes back.
+- A passage that occurs several times in a block is stored without context (nothing says which one was selected) and
+  drawn at every occurrence, except that whole words win over the same letters inside a longer word.
+- A passage that crosses paragraphs is stored on one line. A selection that reaches outside the story text (its
+  title, say) is saved but not drawn. The explanation and an answer can't be highlighted while they are being written.
+- The server keeps the first color of a passage, so changing a color is a removal followed by a new highlight (a new
+  id and time). If the new one is refused the old color is added back; if that fails too the highlight is gone.
+- The Highlight item is added at the end of the selection toolbar; on a narrow toolbar it can sit under the overflow.
+
+The tests in `ui/explica/` run the real screens on Robolectric (Android 15): the selection, the toolbar item, the
+painting, taps, the sheets and the reader's content and top bar. What they can't show is how it looks, a long press
+(none started in any attempt) and where in a line a finger lands: Robolectric's text has no real font metrics.
+
 ## Building
 
 Locally (JDK 21, Android SDK with platform 37): `./gradlew :app:testFreeDebugUnitTest --tests

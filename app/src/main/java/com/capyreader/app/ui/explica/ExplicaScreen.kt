@@ -23,7 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
@@ -41,6 +40,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
@@ -50,7 +51,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +71,14 @@ import com.capyreader.app.ui.articles.reader.LocalReaderStyle
 import com.capyreader.app.ui.articles.reader.ReaderActions
 import com.capyreader.app.ui.articles.reader.ReaderStyle
 import com.capyreader.app.ui.articles.reader.rememberReaderStyle
+import com.capyreader.app.ui.explica.highlights.HighlightMessages
+import com.capyreader.app.ui.explica.highlights.HighlightScope
+import com.capyreader.app.ui.explica.highlights.HighlightSelection
+import com.capyreader.app.ui.explica.highlights.HighlightsListSheet
+import com.capyreader.app.ui.explica.highlights.HighlightsToolbarButton
+import com.capyreader.app.ui.explica.highlights.LocalHighlights
+import com.capyreader.app.ui.explica.highlights.RefreshHighlightsOnResume
+import com.capyreader.app.ui.explica.highlights.rememberHighlightsHost
 import com.capyreader.app.ui.provideLinkOpener
 import com.jocmp.mallet.Mallet
 import org.koin.androidx.compose.koinViewModel
@@ -84,22 +96,28 @@ fun ExplicaScreen(
     articleID: String,
     onNavigateBack: () -> Unit,
     viewModel: ExplicaViewModel = koinViewModel { parametersOf(articleID.toLongOrNull() ?: 0L) },
+    highlightsViewModel: HighlightsViewModel = koinViewModel { parametersOf(articleID.toLongOrNull() ?: 0L) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val linkOpener = provideLinkOpener(LocalContext.current)
     val readerStyle = rememberReaderStyle(showImages = false)
+    val highlights = rememberHighlightsHost(highlightsViewModel)
 
-    ExplicaView(
-        state = state,
-        readerStyle = readerStyle,
-        onNavigateBack = onNavigateBack,
-        onDraftChange = viewModel::setDraft,
-        onSend = viewModel::send,
-        onAsk = viewModel::ask,
-        onExplain = viewModel::explain,
-        onRetry = viewModel::retry,
-        onOpenLink = { url -> linkOpener.open(Uri.parse(url)) },
-    )
+    RefreshHighlightsOnResume(highlights)
+
+    CompositionLocalProvider(LocalHighlights provides highlights) {
+        ExplicaView(
+            state = state,
+            readerStyle = readerStyle,
+            onNavigateBack = onNavigateBack,
+            onDraftChange = viewModel::setDraft,
+            onSend = viewModel::send,
+            onAsk = viewModel::ask,
+            onExplain = viewModel::explain,
+            onRetry = viewModel::retry,
+            onOpenLink = { url -> linkOpener.open(Uri.parse(url)) },
+        )
+    }
 }
 
 private sealed interface Entry {
@@ -144,6 +162,14 @@ fun ExplicaView(
     onOpenLink: (String) -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val snackbar = remember { SnackbarHostState() }
+    var highlightsOpen by rememberSaveable { mutableStateOf(false) }
+    // Null when the screen was given no highlights (a preview, a test): then nothing about them shows.
+    val highlights = LocalHighlights.current
+
+    if (highlights != null) {
+        HighlightMessages(host = highlights, snackbar = snackbar)
+    }
 
     val entries = remember(state.phase, state.suggestions, state.turns, state.asking, state.askFailure) {
         buildList<Entry> {
@@ -203,6 +229,9 @@ fun ExplicaView(
                         }
                     },
                     actions = {
+                        if (highlights != null) {
+                            HighlightsToolbarButton(onClick = { highlightsOpen = true })
+                        }
                         if (state.articleUrl.isNotBlank()) {
                             IconButton(onClick = { onOpenLink(state.articleUrl) }) {
                                 Icon(
@@ -214,6 +243,7 @@ fun ExplicaView(
                     },
                 )
             },
+            snackbarHost = { SnackbarHost(hostState = snackbar) },
             bottomBar = {
                 // Only a failed explanation takes the bar away. While the story is opening or the explanation is
                 // being written the bar stays, disabled, so the keyboard and the layout don't jump.
@@ -257,7 +287,7 @@ fun ExplicaView(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             is ExplanationEntry -> ExplanationSection(state, onRetry, onOpenLink)
-                            is TurnEntry -> TurnItem(entry.turn, onOpenLink)
+                            is TurnEntry -> TurnItem(entry.index, entry.turn, onOpenLink)
                             is SuggestionsEntry -> Suggestions(state.suggestions, onAsk)
                             is AskErrorEntry -> Text(
                                 text = failureText(state.askFailure),
@@ -268,6 +298,10 @@ fun ExplicaView(
                     }
                 }
             }
+        }
+
+        if (highlightsOpen && highlights != null) {
+            HighlightsListSheet(host = highlights, onDismiss = { highlightsOpen = false })
         }
     }
 }
@@ -297,7 +331,12 @@ private fun ExplanationSection(
         }
 
         if (state.explanationHtml.isNotBlank()) {
-            HtmlBlock(state.explanationHtml, onOpenLink)
+            // What is still being written isn't final, so it can't be highlighted yet.
+            HtmlBlock(
+                html = state.explanationHtml,
+                onOpenLink = onOpenLink,
+                where = HighlightWhere.EXPLANATION.takeIf { state.phase == ExplicaPhase.READY },
+            )
         }
 
         when (state.phase) {
@@ -318,7 +357,7 @@ private fun ExplanationSection(
 }
 
 @Composable
-private fun TurnItem(turn: ExplicaTurn, onOpenLink: (String) -> Unit) {
+private fun TurnItem(index: Int, turn: ExplicaTurn, onOpenLink: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(
             contentAlignment = Alignment.CenterEnd,
@@ -340,7 +379,7 @@ private fun TurnItem(turn: ExplicaTurn, onOpenLink: (String) -> Unit) {
 
         when (turn.status) {
             STATUS_DONE -> {
-                HtmlBlock(turn.htmlApp, onOpenLink)
+                HtmlBlock(html = turn.htmlApp, onOpenLink = onOpenLink, where = HighlightWhere.answer(index))
 
                 if (turn.meta.isNotBlank()) {
                     Text(
@@ -569,9 +608,12 @@ private fun FailureCard(message: String, onRetry: () -> Unit) {
     }
 }
 
-/** The server's HTML (`html_app`), flattened and drawn by the article reader, so it follows the reader's font settings. */
+/**
+ * The server's HTML (`html_app`), flattened and drawn by the article reader, so it follows the reader's font settings.
+ * With a [where] its text can be highlighted (see [HighlightScope]).
+ */
 @Composable
-private fun HtmlBlock(html: String, onOpenLink: (String) -> Unit) {
+private fun HtmlBlock(html: String, onOpenLink: (String) -> Unit, where: String? = null) {
     val article = remember(html) { Mallet.flatten(html, BuildConfig.EXPLICA_URL).getOrNull() } ?: return
     val actions = remember(onOpenLink) {
         ReaderActions(
@@ -583,11 +625,13 @@ private fun HtmlBlock(html: String, onOpenLink: (String) -> Unit) {
         )
     }
 
-    SelectionContainer {
-        ProvideTextStyle(
-            LocalReaderStyle.current.bodyTextStyle.copy(color = MaterialTheme.colorScheme.onSurface)
-        ) {
-            ArticleBody(article = article, actions = actions)
+    HighlightScope(where = where, article = article) {
+        HighlightSelection {
+            ProvideTextStyle(
+                LocalReaderStyle.current.bodyTextStyle.copy(color = MaterialTheme.colorScheme.onSurface)
+            ) {
+                ArticleBody(article = article, actions = actions)
+            }
         }
     }
 }

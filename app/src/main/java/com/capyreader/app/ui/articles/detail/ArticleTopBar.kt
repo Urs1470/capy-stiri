@@ -47,6 +47,8 @@ import com.capyreader.app.ui.articles.DeletePageDialog
 import com.capyreader.app.ui.articles.LocalArticleActions
 import com.capyreader.app.ui.articles.LocalLabelsActions
 import com.capyreader.app.ui.components.ToolbarTooltip
+import com.capyreader.app.ui.explica.highlights.HighlightsToolbarButton
+import com.capyreader.app.ui.explica.highlights.StoryHighlightsSheet
 import com.capyreader.app.ui.fixtures.PreviewKoinApplication
 import com.capyreader.app.ui.components.LocalSnackbarHost
 import kotlinx.coroutines.launch
@@ -72,6 +74,7 @@ fun ArticleTopBar(
     val labelsActions = LocalLabelsActions.current
     val (isStyleSheetOpen, setStyleSheetOpen) = rememberSaveable { mutableStateOf(false) }
     val (isDeletePageDialogOpen, setDeletePageDialogOpen) = rememberSaveable { mutableStateOf(false) }
+    val (isHighlightsOpen, setHighlightsOpen) = rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -107,6 +110,11 @@ fun ArticleTopBar(
                     title = {},
                     actions = {
                         if (canExplain) {
+                            ToolbarTooltip(
+                                message = stringResource(R.string.highlights_action)
+                            ) {
+                                HighlightsToolbarButton(onClick = { setHighlightsOpen(true) })
+                            }
                             ToolbarTooltip(
                                 message = stringResource(R.string.explica_action)
                             ) {
@@ -215,6 +223,10 @@ fun ArticleTopBar(
                 ArticleStylePicker()
             }
         }
+    }
+
+    if (isHighlightsOpen) {
+        StoryHighlightsSheet(articleId = articleId, onDismiss = { setHighlightsOpen(false) })
     }
 
     if (isDeletePageDialogOpen) {

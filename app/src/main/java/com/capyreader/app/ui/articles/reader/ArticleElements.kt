@@ -64,6 +64,8 @@ import coil3.size.Precision
 import coil3.size.Size
 import com.capyreader.app.R
 import com.capyreader.app.ui.components.ShareLink
+import com.capyreader.app.ui.explica.highlights.LocalHighlightSpans
+import com.capyreader.app.ui.explica.highlights.highlightTaps
 import com.jocmp.mallet.LinearAudio
 import com.jocmp.mallet.LinearBlockQuote
 import com.jocmp.mallet.LinearElement
@@ -217,10 +219,12 @@ fun TextElement(
     val links = remember(linearText) { linearText.links }
     val haptics = LocalHapticFeedback.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    // Highlights of a digest story or of its explanation (this fork); null everywhere else.
+    val highlights = LocalHighlightSpans.current?.forParagraph(linearText)
 
     BidiLayoutDirection(paragraph = linearText.text) {
         Text(
-            text = annotated,
+            text = highlights?.styled(annotated) ?: annotated,
             softWrap = softWrap,
             onTextLayout = { layout = it },
             modifier = modifier.longPressLink(
@@ -236,7 +240,7 @@ fun TextElement(
                         )
                     )
                 },
-            ),
+            ).highlightTaps(highlights) { layout },
         )
     }
 }

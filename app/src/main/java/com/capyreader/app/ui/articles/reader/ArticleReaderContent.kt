@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -21,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.capyreader.app.R
 import com.capyreader.app.common.AudioEnclosure
+import com.capyreader.app.ui.explica.highlights.StoryHighlightableContent
 import com.jocmp.capy.Article
 import com.jocmp.mallet.LinearArticle
 
@@ -43,7 +43,7 @@ fun ArticleReaderContent(
     val readerStyle = LocalReaderStyle.current
     val audioEnclosures = article.enclosures.filter { it.type.startsWith("audio/") }
 
-    SelectionContainer {
+    StoryHighlightableContent(article = article, flattened = flattened) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.fillMaxWidth(),

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Highlights on the stories of the daily digest and on their AI explanations (this fork only). -->
+<resources>
+    <string name="highlights_action">Highlights</string>
+    <string name="highlights_menu_item">Highlight</string>
+    <string name="highlights_sheet_title">Highlight as</string>
+    <string name="highlights_color_yellow">Idea</string>
+    <string name="highlights_color_green">Fact or definition</string>
+    <string name="highlights_color_blue">Question</string>
+    <string name="highlights_color_pink">Quote</string>
+    <string name="highlights_color">Color</string>
+    <string name="highlights_copy">Copy</string>
+    <string name="highlights_remove">Remove</string>
+    <string name="highlights_list_title">Highlights</string>
+    <string name="highlights_empty">Nothing highlighted yet. Select some text in the story or the explanation and choose Highlight.</string>
+    <string name="highlights_load_failed">Couldn\'t load the highlights.</string>
+    <string name="highlights_where_story">Story</string>
+    <string name="highlights_where_explanation">Explanation</string>
+    <string name="highlights_where_answer">Answer %1$d</string>
+    <string name="highlights_error_add">Couldn\'t save the highlight.</string>
+    <string name="highlights_error_remove">Couldn\'t remove the highlight.</string>
+    <string name="highlights_error_recolor">Couldn\'t change the color.</string>
+    <string name="highlights_error_too_long">That passage is too long to highlight. Select up to 1,000 characters.</string>
+    <string name="highlights_cause_network">No connection.</string>
+    <string name="highlights_cause_unauthorized">Sign in again.</string>
+    <string name="highlights_cause_unavailable">The server can\'t check your token right now.</string>
+    <string name="highlights_cause_rate_limited">Too many requests.</string>
+</resources>
