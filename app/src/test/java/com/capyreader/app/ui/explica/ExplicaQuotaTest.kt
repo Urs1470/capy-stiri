@@ -128,6 +128,48 @@ class ExplicaQuotaTest {
     }
 
     @Test
+    fun aQuotaWithNumbersThatAreNotWholeNumbers_isReadAsWholeOnes() = runTest {
+        val cases = mapOf(
+            """{"used":18.0,"cap":60.0}""" to Quota(used = 18, cap = 60),
+            """{"used":"18","cap":"60"}""" to Quota(used = 18, cap = 60),
+            """{"used":18.7,"cap":60}""" to Quota(used = 18, cap = 60),
+            """{"used":1,"cap":60,"resets_at":"2026-10-02T00:00:00Z"}""" to Quota(used = 1, cap = 60),
+            """{}""" to Quota(used = 0, cap = 0),
+        )
+
+        cases.forEach { (quota, expected) ->
+            val value = (client(body = """{"status":"idle","title":"Drone","quota":$quota}""")
+                .explain(entryId = 1, start = false) as ExplicaResult.Success).value
+
+            assertEquals(quota, expected, value.quota)
+            assertEquals(quota, "Drone", value.title)
+        }
+    }
+
+    @Test
+    fun aQuotaThatIsNotOneAtAll_isNoQuota_andNeverSpoilsTheAnswer() = runTest {
+        listOf(
+            """"lots"""", """[1,2]""", """42""", """true""", """null""",
+            """{"used":"many","cap":60}""", """{"used":{"a":1},"cap":60}""", """{"used":[1],"cap":60}""",
+        ).forEach { quota ->
+            val explained = client(body = """{"status":"done","title":"Drone","html_app":"<p>x</p>","quota":$quota}""")
+                .explain(entryId = 1) as ExplicaResult.Success
+            val asked = client(body = """{"chat":[{"q":"Ce e drona?","status":"done"}],"quota":$quota}""")
+                .ask(entryId = 1, question = "Ce e drona?") as ExplicaResult.Success
+            val capped = client(code = 429, body = """{"error":"Ai atins limita de azi.","quota":$quota}""")
+                .explain(entryId = 1) as ExplicaResult.Failure
+
+            assertNull(quota, explained.value.quota)
+            assertEquals(quota, "<p>x</p>", explained.value.htmlApp)
+            assertNull(quota, asked.value.quota)
+            assertEquals(quota, "Ce e drona?", asked.value.chat.single().q)
+            assertNull(quota, capped.quota)
+            assertEquals(quota, "Ai atins limita de azi.", capped.message)
+            assertEquals(quota, FailureKind.RATE_LIMITED, capped.kind)
+        }
+    }
+
+    @Test
     fun whatIsLeft_neverGoesBelowZero() {
         assertEquals(0, Quota(used = 61, cap = 60).left)
         assertEquals(0, Quota(used = 60, cap = 60).left)

@@ -2,6 +2,14 @@ package com.capyreader.app.ui.explica
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonTransformingSerializer
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 const val STATUS_RUNNING = "running"
 const val STATUS_DONE = "done"
@@ -47,6 +55,32 @@ data class Quota(
 const val QUOTA_CAPTION_AT_OR_BELOW = 60
 
 /**
+ * Reads the `quota` of an answer without letting it spoil the answer: it is only a caption, so a value that is not
+ * what the server promised (a number as `18.0` or `"18"` is read as 18; anything that is not a number, or not an
+ * object, is no quota at all) must not turn an explanation into a failure.
+ */
+internal object LenientQuotaSerializer : JsonTransformingSerializer<Quota?>(Quota.serializer().nullable) {
+    override fun transformDeserialize(element: JsonElement): JsonElement {
+        val quota = element as? JsonObject ?: return JsonNull
+
+        return buildJsonObject {
+            listOf("used", "cap").forEach { key ->
+                val value = quota[key]
+
+                if (value == null || value is JsonNull) {
+                    return@forEach
+                }
+
+                val number = (value as? JsonPrimitive)?.content?.toDoubleOrNull()?.takeIf { it.isFinite() }
+                    ?: return JsonNull
+
+                put(key, number.toInt())
+            }
+        }
+    }
+}
+
+/**
  * `POST /explica/api/explain`: the explanation of one story, or its progress. [status] is `done`,
  * `running`, `error` or, after a read-only call, `idle` (then only [title], [link] and [chat] matter).
  * [day] is true for the entry of the day (the story of the feed "00 Azi"): it has no explanation, and the
@@ -64,7 +98,7 @@ data class ExplainResponse(
     val suggest: List<String> = emptyList(),
     val chat: List<ExplicaTurn> = emptyList(),
     val error: String = "",
-    val quota: Quota? = null,
+    @Serializable(with = LenientQuotaSerializer::class) val quota: Quota? = null,
     val day: Boolean = false,
 )
 
@@ -73,7 +107,7 @@ data class ExplainResponse(
 data class AskResponse(
     val chat: List<ExplicaTurn> = emptyList(),
     val error: String = "",
-    val quota: Quota? = null,
+    @Serializable(with = LenientQuotaSerializer::class) val quota: Quota? = null,
 )
 
 enum class FailureKind {

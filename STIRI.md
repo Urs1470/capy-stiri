@@ -41,7 +41,9 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
   cap included (`Quota` in `ExplicaModels.kt`; `ExplicaResult.Failure.quota` for the 429). The view model keeps the last
   one (an answer without the key, from an older server, leaves it in place) and, when `QUOTA_CAPTION_AT_OR_BELOW` (60) or
   fewer requests are left, the screen draws a small caption above the chips, "42 requests left today" (the plural
-  `explica_requests_left`). At 0 nothing else changes: the server's own 429 text still shows as the error.
+  `explica_requests_left`). At 0 nothing else changes: the server's own 429 text still shows as the error. The key is
+  read leniently (`LenientQuotaSerializer`): `18.0` or `"18"` is 18, and a value that is not a quota is none, because a
+  caption must never turn an answer into a failure.
 - The day entry: for the story of the feed "00 Azi" (the day's title, the "N articles from M sources" line and the concept
   of the day) `explain` answers `"day": true`, never writes an explanation and answers questions from all the other
   stories of the day. For it the screen has no Explain chip (`ExplicaState.offersExplain`; `explain()` ignores the call
