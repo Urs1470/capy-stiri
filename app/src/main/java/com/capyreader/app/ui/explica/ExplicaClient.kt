@@ -34,6 +34,32 @@ interface ExplicaApi {
     suspend fun ask(entryId: Long, question: String? = null): ExplicaResult<AskResponse>
 }
 
+/**
+ * The highlights of a story, kept by the same server (`POST api/highlights`; the `op` is `list`, `add` or `remove`).
+ * Every call is one request: nothing is queued, so a call that fails is for the caller to undo.
+ */
+interface HighlightsApi {
+    /** All the highlights of the story for this reader, oldest first. */
+    suspend fun listHighlights(entryId: Long): ExplicaResult<List<Highlight>>
+
+    /**
+     * Saves [text] (1..1000 characters) as a highlight of [color] in [where] (see [HighlightWhere]). [prefix] and
+     * [suffix] are the text around it (up to 60 characters each) that tells the passage apart when the same words
+     * occur several times. Adding the same [where] and [text] again returns the highlight that exists.
+     */
+    suspend fun addHighlight(
+        entryId: Long,
+        text: String,
+        color: HighlightColor,
+        where: String,
+        prefix: String = "",
+        suffix: String = "",
+    ): ExplicaResult<Highlight>
+
+    /** Removes a highlight; an [id] the server doesn't know is a [FailureKind.NOT_FOUND]. */
+    suspend fun removeHighlight(entryId: Long, id: String): ExplicaResult<Unit>
+}
+
 internal val ExplicaJson = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
@@ -48,7 +74,7 @@ class ExplicaClient(
     baseUrl: String,
     private val token: () -> String,
     private val json: Json = ExplicaJson,
-) : ExplicaApi {
+) : ExplicaApi, HighlightsApi {
     private val base = baseUrl.toHttpUrl()
 
     override suspend fun explain(entryId: Long, retry: Boolean, start: Boolean): ExplicaResult<ExplainResponse> =
@@ -64,6 +90,72 @@ class ExplicaClient(
             put("entry_id", entryId)
             if (question != null) put("question", question)
         }
+
+    override suspend fun listHighlights(entryId: Long): ExplicaResult<List<Highlight>> {
+        val result = post("api/highlights", HighlightsResponse.serializer()) {
+            put("entry_id", entryId)
+            put("op", "list")
+        }
+
+        return when (result) {
+            is ExplicaResult.Success -> ExplicaResult.Success(result.value.highlights)
+            is ExplicaResult.Failure -> result
+        }
+    }
+
+    override suspend fun addHighlight(
+        entryId: Long,
+        text: String,
+        color: HighlightColor,
+        where: String,
+        prefix: String,
+        suffix: String,
+    ): ExplicaResult<Highlight> {
+        val result = post("api/highlights", HighlightResponse.serializer()) {
+            put("entry_id", entryId)
+            put("op", "add")
+            put("text", text)
+            put("color", color.wire)
+            put("where", where)
+            // The context is optional: without it the server stores none.
+            if (prefix.isNotEmpty()) put("prefix", prefix)
+            if (suffix.isNotEmpty()) put("suffix", suffix)
+        }
+
+        return when (result) {
+            is ExplicaResult.Success -> {
+                val highlight = result.value.highlight
+
+                if (highlight == null) {
+                    ExplicaResult.Failure(FailureKind.SERVER, "no highlight in the answer")
+                } else {
+                    ExplicaResult.Success(highlight)
+                }
+            }
+
+            is ExplicaResult.Failure -> result
+        }
+    }
+
+    override suspend fun removeHighlight(entryId: Long, id: String): ExplicaResult<Unit> {
+        val result = post("api/highlights", OkResponse.serializer()) {
+            put("entry_id", entryId)
+            put("op", "remove")
+            put("id", id)
+        }
+
+        return when (result) {
+            is ExplicaResult.Success -> {
+                if (result.value.ok) {
+                    ExplicaResult.Success(Unit)
+                } else {
+                    ExplicaResult.Failure(FailureKind.SERVER, "the server did not confirm the removal")
+                }
+            }
+
+            is ExplicaResult.Failure -> result
+        }
+    }
 
     private suspend fun <T> post(
         path: String,

@@ -6,6 +6,7 @@ import com.jocmp.capy.Account
 import com.jocmp.capy.accounts.Source
 import com.jocmp.capy.accounts.baseHttpClient
 import org.koin.core.module.dsl.viewModel
+import org.koin.dsl.binds
 import org.koin.dsl.module
 
 /** The explain button is for stories of the digest feeds, in a Miniflux account signed in with an API token. */
@@ -22,15 +23,22 @@ internal val explicaModule = module {
     includes(digestModule)
 
     // The server knows the reader by the Miniflux API token, which the account keeps as its password.
-    single<ExplicaApi> {
+    // One client serves the explainer and the highlights.
+    single {
         ExplicaClient(
             http = baseHttpClient(),
             baseUrl = BuildConfig.EXPLICA_URL,
             token = { get<Account>().preferences.password.get() },
         )
-    }
+    } binds arrayOf(ExplicaApi::class, HighlightsApi::class)
     viewModel { parameters ->
         ExplicaViewModel(
+            api = get(),
+            entryId = parameters.get(),
+        )
+    }
+    viewModel { parameters ->
+        HighlightsViewModel(
             api = get(),
             entryId = parameters.get(),
         )
