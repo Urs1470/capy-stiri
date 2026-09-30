@@ -1,20 +1,20 @@
 package com.capyreader.app.ui.explica
 
 import android.net.Uri
+import android.view.WindowManager
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -150,9 +151,10 @@ fun ExplicaView(
         }
     }
 
+    ResizeForKeyboard()
+
     CompositionLocalProvider(LocalReaderStyle provides readerStyle) {
         Scaffold(
-            modifier = Modifier.imePadding(),
             topBar = {
                 TopAppBar(
                     title = {
@@ -341,6 +343,29 @@ private fun Suggestions(questions: List<String>, onAsk: (String) -> Unit) {
     }
 }
 
+/**
+ * Without an explicit mode the system pans the whole window up when the keyboard opens over the message
+ * bar, and the bar is lifted a second time by [imePadding]: the bar ends up mid-screen, the top bar
+ * disappears and black shows behind the keyboard's rounded corners. With `adjustResize` the system
+ * leaves the window alone (the app draws edge to edge) and the keyboard is handled only through insets.
+ * The previous mode comes back when the screen closes, so the rest of the app is unaffected.
+ */
+@Composable
+private fun ResizeForKeyboard() {
+    val window = LocalActivity.current?.window ?: return
+
+    DisposableEffect(window) {
+        val previous = window.attributes.softInputMode
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+
+        onDispose { window.setSoftInputMode(previous) }
+    }
+}
+
+/**
+ * The bar's surface reaches the bottom edge of the window and takes the keyboard (or the navigation bar)
+ * as its own padding, so its color also fills the space behind the keyboard.
+ */
 @Composable
 private fun MessageBar(
     draft: String,
@@ -355,7 +380,8 @@ private fun MessageBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             OutlinedTextField(
