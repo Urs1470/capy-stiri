@@ -5,9 +5,11 @@ import com.capyreader.app.ui.digest.digestModule
 import com.jocmp.capy.Account
 import com.jocmp.capy.accounts.Source
 import com.jocmp.capy.accounts.baseHttpClient
+import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
-import org.koin.dsl.binds
+import org.koin.dsl.bind
 import org.koin.dsl.module
+import java.io.File
 
 /** The explain button is for stories of the digest feeds, in a Miniflux account signed in with an API token. */
 fun canExplain(
@@ -30,7 +32,14 @@ internal val explicaModule = module {
             baseUrl = BuildConfig.EXPLICA_URL,
             token = { get<Account>().preferences.password.get() },
         )
-    } binds arrayOf(ExplicaApi::class, HighlightsApi::class)
+    } bind HighlightsApi::class
+    // The explainer goes through the copies kept on the phone (see SavedExplanationsApi).
+    single<ExplicaApi> {
+        SavedExplanationsApi(
+            delegate = get<ExplicaClient>(),
+            store = SavedExplanationStore(File(androidContext().filesDir, SAVED_EXPLANATIONS_DIRECTORY)),
+        )
+    }
     viewModel { parameters ->
         ExplicaViewModel(
             api = get(),

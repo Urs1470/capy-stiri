@@ -48,6 +48,17 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
   too), the four story chips give way to four `DayQuestion` chips ("Top stories", "For Moldova", "Economy & markets", "What
   to watch"; fixed English questions, nothing personal), and the empty-chat hint and the field's placeholder speak of
   today's stories. The questions go through the ordinary `ask`.
+- Saved explanations (`SavedExplanations.kt`): `SavedExplanationsApi` sits in front of the client (one place,
+  `ExplicaModule.kt`) and keeps the last `done` answer of `explain` of each story, with its chat (brought up to date after
+  every successful `ask`, without the answer still being written), as one small JSON file,
+  `filesDir/explica/<entry id>.json` (`SavedExplanationStore`). At most 300 files, and none that was last saved more than 90
+  days ago; it is tidied when the decorator is created (the first time the AI screen is opened), and a new file also
+  holds the limit. The network goes first, for every call, the read-only open (`start:false`) too, and what is sent to the
+  server is not changed. The copy answers only when the call fails with no connection, `503` (the server can't check the
+  token) or `404` (the server keeps the explanations of stories that are not starred for 14 days, then forgets them), and
+  its `meta` then ends with " · saved copy". An answer from the server is never replaced by the copy, and a `done` one
+  replaces it. Other failures (token, cap, busy chat, a 5xx from a proxy) show as before. The entry of the day has no
+  explanation, so no copy, and a chat without an explanation isn't saved either.
 - New package `app/src/main/java/com/capyreader/app/ui/digest/` (the other additions for the digest's stories):
   - Sync on open (`SyncOnOpen.kt`): upstream refreshes on the first run, on pull to refresh and every two hours
     in the background, so opening the app showed the list as it was. Now an open (`MainActivity.onStart`) also
