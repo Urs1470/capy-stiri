@@ -1,0 +1,64 @@
+name: Build Capy Știri
+
+# Personal build of this fork (see STIRI.md): runs the explainer tests, builds the signed
+# free/nightly APK ("Capy Știri", id com.capyreader.app.nightly) and puts it in a release of this
+# private repository. Started by hand: Actions → Build Capy Știri → Run workflow, or
+#   gh workflow run build-stiri.yml --repo Urs1470/capy-stiri --ref stiri
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-stiri
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: "zulu"
+          java-version: "21"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Explainer tests
+        run: ./gradlew :app:testFreeDebugUnitTest --tests 'com.capyreader.app.ui.explica.*' --build-cache
+      - name: Signing key
+        env:
+          ENCODED_RELEASE_KEYSTORE: ${{ secrets.ENCODED_RELEASE_KEYSTORE }}
+          PROP_STORE_PASSWORD: ${{ secrets.PROP_STORE_PASSWORD }}
+          PROP_KEY_ALIAS: ${{ secrets.PROP_KEY_ALIAS }}
+          PROP_KEY_PASSWORD: ${{ secrets.PROP_KEY_PASSWORD }}
+        run: |
+          echo "$ENCODED_RELEASE_KEYSTORE" | base64 --decode > release.keystore
+          {
+            echo "store_password=$PROP_STORE_PASSWORD"
+            echo "key_alias=$PROP_KEY_ALIAS"
+            echo "key_password=$PROP_KEY_PASSWORD"
+          } > secrets.properties
+      - name: Build APK
+        run: ./gradlew :app:assembleFreeNightly --build-cache
+      - name: Verify the signature
+        run: |
+          APK=app/build/outputs/apk/free/nightly/app-free-nightly.apk
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          "$BT/apksigner" verify --verbose --print-certs "$APK"
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package:|application-label:'"
+          cp "$APK" "capy-stiri-${GITHUB_SHA::8}.apk"
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: stiri-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: Capy Știri ${{ github.run_number }} (${{ github.sha }})
+          prerelease: true
+          files: capy-stiri-*.apk
