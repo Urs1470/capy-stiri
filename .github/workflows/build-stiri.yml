@@ -2,7 +2,7 @@ name: Build Capy News
 
 # Personal build of this fork (see STIRI.md): runs the explainer tests, builds the signed
 # free/nightly APK ("Capy News", id com.capyreader.app.nightly) and puts it in a release of this
-# private repository. Started by hand: Actions → Build Capy News → Run workflow, or
+# repository. Started by hand: Actions → Build Capy News → Run workflow, or
 #   gh workflow run build-stiri.yml --repo Urs1470/capy-stiri --ref stiri
 
 on:

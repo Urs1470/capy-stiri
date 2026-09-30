@@ -1,6 +1,6 @@
 # Capy News — personal fork of Capy Reader
 
-A private build of [jocmp/capyreader](https://github.com/jocmp/capyreader) (GPL-3.0) with one addition:
+A personal build of [jocmp/capyreader](https://github.com/jocmp/capyreader) (GPL-3.0) with one addition:
 for the stories of a daily news digest kept in Miniflux, an **Explain** button in the article's top bar
 opens a native screen (Material You) with an AI explanation of the story, suggested questions and a
 chat. The words come from a small server (`tools/stiri-explica/` in Ion's Knowledge vault); this app only
