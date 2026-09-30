@@ -1,6 +1,5 @@
 package com.capyreader.app.ui.explica.highlights
 
-import android.os.Looper
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
@@ -21,7 +20,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 
 /** The highlights on the AI screen of a story: the real `ExplicaView`, on Robolectric (see [ComposeScreen]). */
 @RunWith(RobolectricTestRunner::class)
@@ -74,10 +72,9 @@ class ExplicaViewHighlightsTest {
 
     @After
     fun tearDown() {
-        if (::screen.isInitialized) screen.destroy()
-
-        shadowOf(Looper.getMainLooper()).idle()
         stopKoin()
+
+        if (::screen.isInitialized) screen.destroy()
     }
 
     @Test

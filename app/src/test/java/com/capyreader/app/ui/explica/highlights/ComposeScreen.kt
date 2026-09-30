@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.os.Looper
 import android.os.SystemClock
 import android.view.ActionMode
+import android.view.Choreographer
 import android.view.InputDevice
 import android.view.MenuItem
 import android.view.MotionEvent
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.AndroidUiDispatcher
 import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
@@ -32,6 +34,7 @@ import org.robolectric.shadows.ShadowLooper
 import org.robolectric.shadows.ShadowSystemClock
 import org.robolectric.util.ReflectionHelpers
 import java.time.Duration
+import kotlin.coroutines.ContinuationInterceptor
 
 /**
  * A Compose screen on Robolectric without the Compose test rule, which this project doesn't have: the screen is
@@ -71,9 +74,31 @@ internal class ComposeScreen private constructor(
         assertTrue(message, stepUntil(done = done) >= 0)
     }
 
+    /**
+     * Takes the screen down and lets the looper finish what the screen had asked for. A frame that Compose or the
+     * window asked for and the looper has not run is lost when Robolectric resets the looper between tests, and the
+     * Choreographer then believes it is still coming and never schedules another, so no later test gets a frame.
+     * That is why time moves on until nothing has come due for a hundred milliseconds.
+     */
     fun destroy() {
         controller.pause().stop().destroy()
-        shadowOf(Looper.getMainLooper()).idle()
+
+        val looper = shadowOf(Looper.getMainLooper())
+        var quiet = 0
+
+        repeat(200) {
+            ShadowSystemClock.advanceBy(Duration.ofMillis(20))
+
+            if (looper.isIdle) {
+                quiet++
+
+                if (quiet >= 5) return
+            } else {
+                quiet = 0
+
+                repeat(500) { if (!looper.isIdle) ShadowLooper.runMainLooperOneTask() }
+            }
+        }
     }
 
     // the selection toolbar
@@ -248,6 +273,8 @@ internal class ComposeScreen private constructor(
          * animation (a progress indicator) keeps the looper busy, so this never waits for it to be idle.
          */
         fun show(content: @Composable () -> Unit): ComposeScreen {
+            unwedgeComposeDispatcher()
+
             val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
 
             controller.get().setContent(content = content)
@@ -263,5 +290,25 @@ internal class ComposeScreen private constructor(
         }
 
         fun color(color: HighlightColor) = Color(HighlightPalette.argb(color, dark = false))
+
+        /**
+         * Compose's UI dispatcher (`AndroidUiDispatcher.Main`, one for the whole test JVM) remembers that a message
+         * is on its way to the looper. When Robolectric resets the looper between two tests while one is, the message
+         * is lost and the dispatcher waits for it for ever: nothing is recomposed in any later test. Doing what the
+         * message and the frame callback would have done puts it right, and changes nothing when all is well.
+         */
+        private fun unwedgeComposeDispatcher() {
+            val dispatcher = AndroidUiDispatcher.Main[ContinuationInterceptor] ?: return
+            val callback = try {
+                ReflectionHelpers.getField<Any>(dispatcher, "dispatchCallback")
+            } catch (e: RuntimeException) {
+                throw AssertionError(
+                    "AndroidUiDispatcher has no dispatchCallback field any more; update unwedgeComposeDispatcher", e
+                )
+            }
+
+            (callback as Runnable).run()
+            (callback as Choreographer.FrameCallback).doFrame(System.nanoTime())
+        }
     }
 }

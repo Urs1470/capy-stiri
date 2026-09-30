@@ -1,6 +1,5 @@
 package com.capyreader.app.ui.explica.highlights
 
-import android.os.Looper
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
@@ -32,7 +31,6 @@ import org.koin.core.context.stopKoin
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import java.time.ZonedDateTime
 
 /**
@@ -116,10 +114,9 @@ class StoryHighlightsTest {
 
     @After
     fun tearDown() {
-        if (::screen.isInitialized) screen.destroy()
-
-        shadowOf(Looper.getMainLooper()).idle()
         stopKoin()
+
+        if (::screen.isInitialized) screen.destroy()
     }
 
     @Test

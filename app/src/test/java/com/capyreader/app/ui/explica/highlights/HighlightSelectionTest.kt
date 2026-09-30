@@ -1,6 +1,5 @@
 package com.capyreader.app.ui.explica.highlights
 
-import android.os.Looper
 import android.view.ActionMode
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.selection.SelectionState
@@ -38,7 +37,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 
 /**
  * Runs the real thing on the JVM, on Robolectric's Android 15 (see [ComposeScreen]): the reader's own text elements
@@ -122,12 +120,11 @@ class HighlightSelectionTest {
 
     @After
     fun tearDown() {
-        if (::selection.isInitialized) selection.clear()
-        if (::screen.isInitialized) screen.destroy()
-
-        shadowOf(Looper.getMainLooper()).idle()
         // The application starts Koin for every test; the next test must find it stopped.
         stopKoin()
+
+        if (::selection.isInitialized) selection.clear()
+        if (::screen.isInitialized) screen.destroy()
     }
 
     private fun backgrounds(text: String) = screen.backgrounds(text)
