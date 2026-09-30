@@ -1,4 +1,4 @@
-# Capy Știri — personal fork of Capy Reader
+# Capy News — personal fork of Capy Reader
 
 A private build of [jocmp/capyreader](https://github.com/jocmp/capyreader) (GPL-3.0) with one addition:
 for the stories of a daily news digest kept in Miniflux, an **Explain** button in the article's top bar
@@ -7,7 +7,7 @@ chat. The words come from a small server (`tools/stiri-explica/` in Ion's Knowle
 draws them.
 
 Nothing else changes: other feeds, other account types and the reader behave as upstream. The build
-installs next to the Play Store app (`com.capyreader.app.nightly`, named "Capy Știri").
+installs next to the Play Store app (`com.capyreader.app.nightly`, named "Capy News").
 
 ## What was added
 
