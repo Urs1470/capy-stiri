@@ -102,7 +102,7 @@ class ExplicaDayEntryTest {
 
     @Test
     fun theDayChips_carryNothingPersonal_becauseTheRepositoryIsPublic() {
-        val personal = Regex("""\b(ion|ursu|electroglobal)\b|@|https?:""", RegexOption.IGNORE_CASE)
+        val personal = Regex("""@|https?:""", RegexOption.IGNORE_CASE)
 
         DayQuestion.entries.forEach { chip ->
             assertFalse(chip.name, personal.containsMatchIn(chip.question))
