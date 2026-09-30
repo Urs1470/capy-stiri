@@ -9,11 +9,21 @@
     <string name="explica_open_article">Open article</string>
     <string name="explica_input_hint">Ask about this story</string>
     <string name="explica_idle_hint">Ask anything about this story, or tap Explain for a written explanation. Nothing is generated until you do.</string>
+    <string name="explica_input_hint_day">Ask about today\'s stories</string>
+    <string name="explica_day_hint">Ask about today\'s stories, or tap a suggestion. The answer is written from all of today\'s stories.</string>
     <string name="explica_explain">Explain</string>
     <string name="explica_chip_summary">Summary</string>
     <string name="explica_chip_terms">Terms</string>
     <string name="explica_chip_why">Why it matters</string>
     <string name="explica_chip_background">Background</string>
+    <string name="explica_chip_day_top">Top stories</string>
+    <string name="explica_chip_day_moldova">For Moldova</string>
+    <string name="explica_chip_day_economy">Economy &amp; markets</string>
+    <string name="explica_chip_day_watch">What to watch</string>
+    <plurals name="explica_requests_left">
+        <item quantity="one">%d request left today</item>
+        <item quantity="other">%d requests left today</item>
+    </plurals>
     <string name="explica_send">Send</string>
     <string name="explica_loading">Loading…</string>
     <string name="explica_working">Working…</string>

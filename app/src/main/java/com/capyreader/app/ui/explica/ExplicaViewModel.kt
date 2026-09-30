@@ -43,6 +43,10 @@ data class ExplicaState(
     val asking: Boolean = false,
     val failure: ExplicaResult.Failure? = null,
     val askFailure: ExplicaResult.Failure? = null,
+    /** The last daily cap the server reported; an answer without one leaves it in place. */
+    val quota: Quota? = null,
+    /** This is the entry of the day ("00 Azi"): no explanation to start, other questions, see [DayQuestion]. */
+    val day: Boolean = false,
 ) {
     /** Questions are taken before the explanation exists and after it, never while it is being written. */
     val canAsk: Boolean
@@ -51,20 +55,37 @@ data class ExplicaState(
     val canSend: Boolean
         get() = canAsk && !asking && draft.isNotBlank()
 
-    /** The Explain shortcut: only while there is no explanation, and not while an answer is being written. */
+    /** The Explain chip is offered while there is no explanation, and never for the entry of the day: the server refuses it. */
+    val offersExplain: Boolean
+        get() = phase == ExplicaPhase.IDLE && !day
+
+    /** The Explain shortcut: only where it is offered, and not while an answer is being written. */
     val canStartExplanation: Boolean
-        get() = phase == ExplicaPhase.IDLE && !asking
+        get() = offersExplain && !asking
 
     /**
-     * The chips next to Explain: the fixed questions nobody has asked in this chat yet. They show from the
-     * moment the story is open until it fails, also while the explanation is being written (disabled, see
-     * [canAskQuick]), so the bar keeps its height; not while the story is still opening.
+     * The chips next to Explain: the fixed questions nobody has asked in this chat yet ([DayQuestion] for the
+     * entry of the day, [QuickQuestion] for a story). They show from the moment the story is open until it
+     * fails, also while the explanation is being written (disabled, see [canAskQuick]), so the bar keeps its
+     * height; not while the story is still opening.
      */
-    val quickQuestions: List<QuickQuestion>
+    val quickQuestions: List<QuickChip>
         get() = when (phase) {
-            ExplicaPhase.IDLE, ExplicaPhase.LOADING, ExplicaPhase.READY -> QuickQuestion.notAskedIn(turns)
+            ExplicaPhase.IDLE, ExplicaPhase.LOADING, ExplicaPhase.READY ->
+                if (day) DayQuestion.notAskedIn(turns) else QuickQuestion.notAskedIn(turns)
+
             ExplicaPhase.OPENING, ExplicaPhase.FAILED -> emptyList()
         }
+
+    /**
+     * How many requests are left today, once [QUOTA_CAPTION_AT_OR_BELOW] or fewer are; `null` while there is
+     * nothing to tell (plenty left, no report from the server yet, or a report without a cap).
+     */
+    val requestsLeft: Int?
+        get() = quota
+            ?.takeIf { it.cap > 0 }
+            ?.left
+            ?.takeIf { it <= QUOTA_CAPTION_AT_OR_BELOW }
 
     /** A chip is tappable when a typed question could be sent: not while an answer or the explanation is being written. */
     val canAskQuick: Boolean
@@ -155,8 +176,14 @@ class ExplicaViewModel(
             }
 
             when (val result = api.ask(entryId, text)) {
-                is ExplicaResult.Success -> showChat(result.value.chat)
+                is ExplicaResult.Success -> {
+                    keepQuota(result.value.quota)
+                    showChat(result.value.chat)
+                }
+
                 is ExplicaResult.Failure -> {
+                    keepQuota(result.quota)
+
                     if (result.chat.isNotEmpty()) {
                         showChat(result.chat)
                     } else {
@@ -210,6 +237,8 @@ class ExplicaViewModel(
                         networkFailures = 0
                         firstCall = false
                         val response = result.value
+                        keepQuota(response.quota)
+                        keepDay(response.day)
 
                         when (response.status) {
                             STATUS_DONE -> {
@@ -241,6 +270,8 @@ class ExplicaViewModel(
                     }
 
                     is ExplicaResult.Failure -> {
+                        keepQuota(result.quota)
+
                         if (result.kind == FailureKind.NETWORK && ++networkFailures < MAX_NETWORK_FAILURES) {
                             delay(retryMillis)
                         } else {
@@ -262,10 +293,13 @@ class ExplicaViewModel(
             when (val result = api.ask(entryId)) {
                 is ExplicaResult.Success -> {
                     networkFailures = 0
+                    keepQuota(result.value.quota)
                     showChat(result.value.chat)
                 }
 
                 is ExplicaResult.Failure -> {
+                    keepQuota(result.quota)
+
                     if (result.kind == FailureKind.NETWORK && ++networkFailures < MAX_NETWORK_FAILURES) {
                         delay(retryMillis)
                     } else {
@@ -277,6 +311,20 @@ class ExplicaViewModel(
         }
 
         _state.update { it.copy(asking = false) }
+    }
+
+    /** The server reports its daily cap with every answer; an answer from an older server leaves the last one in place. */
+    private fun keepQuota(quota: Quota?) {
+        if (quota != null) {
+            _state.update { it.copy(quota = quota) }
+        }
+    }
+
+    /** Once an answer says this is the entry of the day it stays so: the answers of one story agree. */
+    private fun keepDay(day: Boolean) {
+        if (day) {
+            _state.update { it.copy(day = true) }
+        }
     }
 
     private fun showProgress(response: ExplainResponse) {

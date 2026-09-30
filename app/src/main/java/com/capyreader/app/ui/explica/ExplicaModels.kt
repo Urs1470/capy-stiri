@@ -30,8 +30,27 @@ data class ExplicaTurn(
 }
 
 /**
+ * The daily cap of the explainer server, as it reports it with every answer of `explain` and `ask` (the 429
+ * that says the cap is reached too): [used] of [cap] requests today. An answer of an older server has none.
+ */
+@Serializable
+data class Quota(
+    val used: Int = 0,
+    val cap: Int = 0,
+) {
+    /** What is left today; never below zero, also when the server counts past its cap. */
+    val left: Int
+        get() = (cap - used).coerceAtLeast(0)
+}
+
+/** The AI screen tells the reader how many requests are left once this many or fewer are. */
+const val QUOTA_CAPTION_AT_OR_BELOW = 60
+
+/**
  * `POST /explica/api/explain`: the explanation of one story, or its progress. [status] is `done`,
  * `running`, `error` or, after a read-only call, `idle` (then only [title], [link] and [chat] matter).
+ * [day] is true for the entry of the day (the story of the feed "00 Azi"): it has no explanation, and the
+ * server answers its questions from all the other stories of the day.
  */
 @Serializable
 data class ExplainResponse(
@@ -45,6 +64,8 @@ data class ExplainResponse(
     val suggest: List<String> = emptyList(),
     val chat: List<ExplicaTurn> = emptyList(),
     val error: String = "",
+    val quota: Quota? = null,
+    val day: Boolean = false,
 )
 
 /** `POST /explica/api/ask`: the chat of one story. */
@@ -52,6 +73,7 @@ data class ExplainResponse(
 data class AskResponse(
     val chat: List<ExplicaTurn> = emptyList(),
     val error: String = "",
+    val quota: Quota? = null,
 )
 
 enum class FailureKind {
@@ -83,10 +105,14 @@ enum class FailureKind {
 sealed interface ExplicaResult<out T> {
     data class Success<T>(val value: T) : ExplicaResult<T>
 
-    /** [message] is the server's own text (Romanian), when it sent one; [chat] comes with 409. */
+    /**
+     * [message] is the server's own text (Romanian), when it sent one; [chat] comes with 409 and [quota] with
+     * the 429 of the daily cap.
+     */
     data class Failure(
         val kind: FailureKind,
         val message: String = "",
         val chat: List<ExplicaTurn> = emptyList(),
+        val quota: Quota? = null,
     ) : ExplicaResult<Nothing>
 }

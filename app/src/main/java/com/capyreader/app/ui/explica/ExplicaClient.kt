@@ -202,6 +202,7 @@ class ExplicaClient(
             kind = kindOf(code),
             message = parsed?.error.orEmpty(),
             chat = parsed?.chat.orEmpty(),
+            quota = parsed?.quota,
         )
     }
 

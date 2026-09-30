@@ -37,6 +37,17 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
   personal in it: the repository is public). The row shows while the story is open (idle, while the explanation
   is written, and after it), scrolls sideways when it doesn't fit, is disabled while an answer or the
   explanation is being written, and a chip whose question is already in the chat is hidden.
+- Daily cap: the server reports `quota: {"used", "cap"}` with every answer of `explain` and `ask`, the 429 of the daily
+  cap included (`Quota` in `ExplicaModels.kt`; `ExplicaResult.Failure.quota` for the 429). The view model keeps the last
+  one (an answer without the key, from an older server, leaves it in place) and, when `QUOTA_CAPTION_AT_OR_BELOW` (60) or
+  fewer requests are left, the screen draws a small caption above the chips, "42 requests left today" (the plural
+  `explica_requests_left`). At 0 nothing else changes: the server's own 429 text still shows as the error.
+- The day entry: for the story of the feed "00 Azi" (the day's title, the "N articles from M sources" line and the concept
+  of the day) `explain` answers `"day": true`, never writes an explanation and answers questions from all the other
+  stories of the day. For it the screen has no Explain chip (`ExplicaState.offersExplain`; `explain()` ignores the call
+  too), the four story chips give way to four `DayQuestion` chips ("Top stories", "For Moldova", "Economy & markets", "What
+  to watch"; fixed English questions, nothing personal), and the empty-chat hint and the field's placeholder speak of
+  today's stories. The questions go through the ordinary `ask`.
 - New package `app/src/main/java/com/capyreader/app/ui/digest/` (the other additions for the digest's stories):
   - Sync on open (`SyncOnOpen.kt`): upstream refreshes on the first run, on pull to refresh and every two hours
     in the background, so opening the app showed the list as it was. Now an open (`MainActivity.onStart`) also

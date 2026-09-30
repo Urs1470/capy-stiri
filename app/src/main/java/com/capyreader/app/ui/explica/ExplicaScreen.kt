@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -252,7 +253,9 @@ fun ExplicaView(
                         draft = state.draft,
                         canSend = state.canSend,
                         enabled = state.canAsk && !state.asking,
-                        showExplain = state.phase == ExplicaPhase.IDLE,
+                        day = state.day,
+                        requestsLeft = state.requestsLeft,
+                        showExplain = state.offersExplain,
                         canExplain = state.canStartExplanation,
                         quickQuestions = state.quickQuestions,
                         canAskQuick = state.canAskQuick,
@@ -282,7 +285,9 @@ fun ExplicaView(
                         when (entry) {
                             is OpeningEntry -> ProgressRow(stringResource(R.string.explica_loading))
                             is HintEntry -> Text(
-                                text = stringResource(R.string.explica_idle_hint),
+                                text = stringResource(
+                                    if (state.day) R.string.explica_day_hint else R.string.explica_idle_hint
+                                ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -450,7 +455,8 @@ private fun ResizeForKeyboard() {
 /**
  * The bar's surface reaches the bottom edge of the window and takes the keyboard (or the navigation bar)
  * as its own padding, so its color also fills the space behind the keyboard. The shortcut chips, when
- * shown, sit above the input inside the same surface. The side padding is on the rows, not on the column,
+ * shown, sit above the input inside the same surface, and above them the small caption that says how many
+ * requests are left today, once few are ([requestsLeft]). The side padding is on the rows, not on the column,
  * so the chips scroll right up to the edge of the screen.
  */
 @Composable
@@ -458,9 +464,11 @@ private fun MessageBar(
     draft: String,
     canSend: Boolean,
     enabled: Boolean,
+    day: Boolean,
+    requestsLeft: Int?,
     showExplain: Boolean,
     canExplain: Boolean,
-    quickQuestions: List<QuickQuestion>,
+    quickQuestions: List<QuickChip>,
     canAskQuick: Boolean,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -476,6 +484,15 @@ private fun MessageBar(
                 .imePadding()
                 .padding(vertical = 8.dp),
         ) {
+            if (requestsLeft != null) {
+                Text(
+                    text = pluralStringResource(R.plurals.explica_requests_left, requestsLeft, requestsLeft),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+
             if (showExplain || quickQuestions.isNotEmpty()) {
                 ShortcutRow(
                     showExplain = showExplain,
@@ -498,7 +515,9 @@ private fun MessageBar(
                     value = draft,
                     onValueChange = onDraftChange,
                     enabled = enabled,
-                    placeholder = { Text(stringResource(R.string.explica_input_hint)) },
+                    placeholder = {
+                        Text(stringResource(if (day) R.string.explica_input_hint_day else R.string.explica_input_hint))
+                    },
                     shape = RoundedCornerShape(28.dp),
                     maxLines = 4,
                     keyboardOptions = KeyboardOptions(
@@ -524,14 +543,15 @@ private fun MessageBar(
 
 /**
  * One-tap shortcuts above the input. The explanation is one of them because it costs a generation
- * from a shared quota, so it never starts by itself. After it come the fixed questions ([QuickQuestion]),
- * each sent as a question of its own. The row scrolls sideways when the chips don't fit the screen.
+ * from a shared quota, so it never starts by itself (and the entry of the day has none). After it come the
+ * fixed questions ([QuickQuestion], or [DayQuestion] for the entry of the day), each sent as a question of
+ * its own. The row scrolls sideways when the chips don't fit the screen.
  */
 @Composable
 private fun ShortcutRow(
     showExplain: Boolean,
     canExplain: Boolean,
-    quickQuestions: List<QuickQuestion>,
+    quickQuestions: List<QuickChip>,
     canAskQuick: Boolean,
     onExplain: () -> Unit,
     onAsk: (String) -> Unit,
