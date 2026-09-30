@@ -5,6 +5,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.jocmp.capy.logging.CapyLog
 import java.time.Clock
 import java.time.Duration
 import java.time.LocalTime
@@ -40,6 +41,7 @@ class MorningSyncScheduler(
             .build()
 
         workManager.enqueueUniqueWork(workNameFor(next), ExistingWorkPolicy.KEEP, request)
+        CapyLog.info("morning_sync_queued", mapOf("at" to next.toString()))
 
         return next
     }

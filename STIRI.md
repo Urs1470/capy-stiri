@@ -172,11 +172,12 @@ Periodic work can't be set to a time of day, and a foreground refresh (opening t
   be a burst, not one a day). After that the choice is the reader's: turn it off in Settings > Notifications > "00 Azi" and
   it stays off; turn it on there by hand if it was never turned on. The other stories notify only when the reader turned
   them on, as upstream.
-- Limits: the time is not exact, because WorkManager runs the job when the system lets it (in Doze often later, even hours
-  later; the notification then comes with it, or with the two-hourly refresh, or the sync on open). Android 13 and later
-  need the notification permission, which the app asks for when Settings > Notifications is opened. A story that a foreground
-  refresh brought in before 06:20 is not announced. A phone that was off for days announces each day entry it missed, one
-  notification each.
+- Limits: the time is not exact, because WorkManager runs the job when the system lets it: in Doze, or when the system puts
+  the app in a low standby bucket (`technotes/Refresh.md`), often later, even hours later. The notification then comes with
+  the job, or with the next background refresh if that is earlier (the periodic one, every two hours by default); opening
+  the app refreshes the list but never notifies. So a story that a refresh of the open app brought in before 06:20 is not
+  announced. Android 13 and later need the notification permission, which the app asks for when Settings > Notifications is
+  opened, once. A phone that was off for days announces each day entry it missed, one notification each.
 
 ## Building
 

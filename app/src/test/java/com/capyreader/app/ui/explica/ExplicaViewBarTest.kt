@@ -112,7 +112,7 @@ class ExplicaViewBarTest {
     // a story
 
     @Test
-    fun aStory_hasTheExplainChipItsFourChipsAndItsHint() {
+    fun aStory_hasTheExplainChip_itsFourChipsAndItsHint() {
         show(idle())
 
         screen.assertSoon("no chips") { storyChips.all { it in texts() } }
@@ -138,7 +138,7 @@ class ExplicaViewBarTest {
     // the entry of the day
 
     @Test
-    fun theDayEntry_hasNoExplainChip_ItsFourDayChipsAndItsOwnHint() {
+    fun theDayEntry_hasNoExplainChip_itsFourDayChipsAndItsOwnHint() {
         show(idle(day = true))
 
         screen.assertSoon("no chips") { dayChips.all { it in texts() } }
