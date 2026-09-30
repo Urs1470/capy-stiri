@@ -33,6 +33,10 @@ sealed class Route : NavKey {
     @Serializable
     data class ArticleDetail(val articleID: String, val searchQuery: String? = null) : Route()
 
+    /** The AI explanation and chat of one story of the daily digest (news explainer, this fork). */
+    @Serializable
+    data class Explica(val articleID: String) : Route()
+
     /**
      * Full-screen image viewer, rendered as an overlay above the list/detail panes (see
      * [com.capyreader.app.ui.articles.media.MediaSceneStrategy]). [Media] is already

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- News explainer (this fork only): AI explanation and chat for the stories of the daily digest. -->
+<resources>
+    <string name="explica_action">Explain</string>
+    <string name="explica_title">Explain</string>
+    <string name="explica_heading">AI explanation</string>
+    <string name="explica_back">Back</string>
+    <string name="explica_open_article">Open article</string>
+    <string name="explica_input_hint">Ask about this story</string>
+    <string name="explica_send">Send</string>
+    <string name="explica_working">Working…</string>
+    <string name="explica_try_again">Try again</string>
+    <string name="explica_error_generic">Something went wrong.</string>
+    <string name="explica_error_unauthorized">The explainer server doesn\'t know your API token. Sign in again with a valid token.</string>
+    <string name="explica_error_network">No connection to the explainer server.</string>
+    <string name="explica_error_unavailable">The explainer server can\'t check your token right now. Try again in a minute.</string>
+</resources>

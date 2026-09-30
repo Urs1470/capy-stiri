@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Save
@@ -60,6 +61,8 @@ fun ArticleTopBar(
     articleId: String,
     canDeletePage: Boolean = false,
     canSaveExternally: Boolean = false,
+    canExplain: Boolean = false,
+    onExplain: () -> Unit = {},
     onDeletePage: () -> Unit = {},
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
@@ -103,6 +106,19 @@ fun ArticleTopBar(
                     },
                     title = {},
                     actions = {
+                        if (canExplain) {
+                            ToolbarTooltip(
+                                message = stringResource(R.string.explica_action)
+                            ) {
+                                IconButton(onClick = onExplain) {
+                                    Icon(
+                                        Icons.Outlined.AutoAwesome,
+                                        contentDescription = stringResource(R.string.explica_action),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        }
                         if (canSaveExternally) {
                             val articleActions = LocalArticleActions.current
                             val snackbar = LocalSnackbarHost.current

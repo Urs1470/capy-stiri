@@ -21,6 +21,7 @@ import com.capyreader.app.ui.LocalLinkOpener
 import com.capyreader.app.ui.articles.audio.AudioPlayerController
 import com.capyreader.app.ui.articles.detail.ArticleView
 import com.capyreader.app.ui.articles.detail.CapyPlaceholder
+import com.capyreader.app.ui.explica.canExplain
 import com.capyreader.app.ui.isSinglePane
 import com.capyreader.app.ui.articles.list.LabelBottomSheet
 import com.capyreader.app.ui.provideLinkOpener
@@ -40,6 +41,7 @@ fun ArticleDetailScreen(
     onBackPressed: () -> Unit,
     onSelectArticle: (id: String) -> Unit,
     onSelectMedia: (media: Media) -> Unit,
+    onExplain: (id: String) -> Unit = {},
     viewModel: ArticleViewModel = koinViewModel(),
 ) {
     LaunchedEffect(articleID) {
@@ -117,6 +119,8 @@ fun ArticleDetailScreen(
                 onToggleRead = viewModel::toggleArticleRead,
                 onToggleStar = viewModel::toggleArticleStar,
                 canSaveExternally = canSaveExternally,
+                canExplain = canExplain(viewModel.source, current.feedURL),
+                onExplain = { onExplain(current.id) },
                 onDeletePage = {
                     onBackPressed()
                     viewModel.deletePage(current.id)

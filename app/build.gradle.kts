@@ -31,6 +31,11 @@ android {
         versionCode = 1212
         versionName = "2026.07.1212"
 
+        // News explainer (this fork): the server that explains the stories of the daily digest, and the
+        // feeds whose stories get the Explain button.
+        buildConfigField("String", "EXPLICA_URL", "\"https://stiri.iupif.org/explica/\"")
+        buildConfigField("String", "EXPLICA_FEED_PREFIX", "\"https://news.iupif.org/sectiuni/\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
