@@ -54,6 +54,21 @@ data class ExplicaState(
     /** The Explain shortcut: only while there is no explanation, and not while an answer is being written. */
     val canStartExplanation: Boolean
         get() = phase == ExplicaPhase.IDLE && !asking
+
+    /**
+     * The chips next to Explain: the fixed questions nobody has asked in this chat yet. They show from the
+     * moment the story is open until it fails, also while the explanation is being written (disabled, see
+     * [canAskQuick]), so the bar keeps its height; not while the story is still opening.
+     */
+    val quickQuestions: List<QuickQuestion>
+        get() = when (phase) {
+            ExplicaPhase.IDLE, ExplicaPhase.LOADING, ExplicaPhase.READY -> QuickQuestion.notAskedIn(turns)
+            ExplicaPhase.OPENING, ExplicaPhase.FAILED -> emptyList()
+        }
+
+    /** A chip is tappable when a typed question could be sent: not while an answer or the explanation is being written. */
+    val canAskQuick: Boolean
+        get() = canAsk && !asking
 }
 
 /**

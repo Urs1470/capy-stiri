@@ -764,4 +764,247 @@ class ExplicaViewModelTest {
         assertFalse(vm.state.value.asking)
         assertTrue(vm.state.value.canStartExplanation)
     }
+
+    // The chips next to Explain: four fixed questions, each sent through the ordinary ask.
+
+    private val allQuick = listOf(
+        QuickQuestion.SUMMARY,
+        QuickQuestion.TERMS,
+        QuickQuestion.WHY_IT_MATTERS,
+        QuickQuestion.BACKGROUND,
+    )
+
+    @Test
+    fun theQuickQuestions_areTheFourFixedOnes_inOrder_withinTheServersLimit() {
+        assertEquals(allQuick, QuickQuestion.entries)
+        assertEquals(allQuick, ExplicaState(phase = ExplicaPhase.IDLE).quickQuestions)
+        assertEquals(
+            listOf(
+                "Summarize this story in two sentences.",
+                "Explain the technical terms and names in this story for a beginner.",
+                "Why does this matter for a reader in Moldova?",
+                "What happened before this? Give the background as a short timeline.",
+            ),
+            QuickQuestion.entries.map { it.question },
+        )
+        QuickQuestion.entries.forEach {
+            assertTrue(it.name, it.question.length <= ExplicaViewModel.MAX_QUESTION_LENGTH)
+            assertEquals(it.name, it.question.trim(), it.question)
+        }
+    }
+
+    @Test
+    fun theQuickQuestions_showWhileTheStoryIsOpen_andNotWhileOpeningOrFailed() {
+        val shown = setOf(ExplicaPhase.IDLE, ExplicaPhase.LOADING, ExplicaPhase.READY)
+
+        ExplicaPhase.entries.forEach { phase ->
+            assertEquals(phase.name, phase in shown, ExplicaState(phase = phase).quickQuestions.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun theQuickQuestions_areTappableOnlyWhereATypedQuestionCouldBeSent() {
+        val allowed = setOf(ExplicaPhase.IDLE, ExplicaPhase.READY)
+
+        ExplicaPhase.entries.forEach { phase ->
+            assertEquals(phase.name, phase in allowed, ExplicaState(phase = phase).canAskQuick)
+            assertFalse(phase.name, ExplicaState(phase = phase, asking = true).canAskQuick)
+        }
+    }
+
+    @Test
+    fun aQuickQuestionAlreadyAskedInTheChat_isHidden_likeASuggestion() {
+        val asked = listOf(turn(QuickQuestion.TERMS.question, "done", html = "<p>x</p>"))
+
+        assertEquals(
+            listOf(QuickQuestion.SUMMARY, QuickQuestion.WHY_IT_MATTERS, QuickQuestion.BACKGROUND),
+            ExplicaState(phase = ExplicaPhase.READY, turns = asked).quickQuestions,
+        )
+
+        // Also while its answer is still being written.
+        val running = listOf(turn(QuickQuestion.SUMMARY.question, "running"))
+        assertEquals(
+            listOf(QuickQuestion.TERMS, QuickQuestion.WHY_IT_MATTERS, QuickQuestion.BACKGROUND),
+            ExplicaState(phase = ExplicaPhase.IDLE, turns = running, asking = true).quickQuestions,
+        )
+
+        // A question typed by hand that is the same as a chip counts too.
+        assertEquals(
+            allQuick - QuickQuestion.BACKGROUND,
+            ExplicaState(
+                phase = ExplicaPhase.IDLE,
+                turns = listOf(turn(QuickQuestion.BACKGROUND.question, "done")),
+            ).quickQuestions,
+        )
+
+        // Any other question leaves the chips alone.
+        assertEquals(
+            allQuick,
+            ExplicaState(phase = ExplicaPhase.IDLE, turns = listOf(turn("Ce e drona?", "done"))).quickQuestions,
+        )
+
+        // When all four are asked there is nothing left to show.
+        assertTrue(
+            ExplicaState(
+                phase = ExplicaPhase.READY,
+                turns = allQuick.map { turn(it.question, "done") },
+            ).quickQuestions.isEmpty()
+        )
+    }
+
+    @Test
+    fun aQuickQuestion_isSentOnce_throughAsk_leavesTheDraftAlone_andItsChipGoesAway() = runTest(dispatcher) {
+        val question = QuickQuestion.SUMMARY.question
+        val api = FakeApi().apply {
+            explainResults += idle()
+            askResults += ExplicaResult.Success(AskResponse(chat = listOf(turn(question, "running"))))
+            askResults += ExplicaResult.Success(
+                AskResponse(chat = listOf(turn(question, "done", html = "<p>Două fraze.</p>")))
+            )
+        }
+
+        val vm = viewModel(api)
+        advanceUntilIdle()
+        vm.setDraft("ceva început")
+        assertEquals(allQuick, vm.state.value.quickQuestions)
+        assertTrue(vm.state.value.canAskQuick)
+
+        vm.ask(question)
+        runCurrent()
+
+        // The chip is gone at once, and none can be tapped while the answer is being written.
+        assertEquals(question, vm.state.value.turns.single().q)
+        assertEquals(allQuick - QuickQuestion.SUMMARY, vm.state.value.quickQuestions)
+        assertFalse(vm.state.value.canAskQuick)
+
+        advanceUntilIdle()
+
+        // One question sent, then only polling; the explanation was not started by it.
+        assertEquals(listOf<String?>(question, null), api.questions)
+        assertEquals(listOf(false), api.explainStartFlags)
+        assertEquals("ceva început", vm.state.value.draft)
+        assertEquals("<p>Două fraze.</p>", vm.state.value.turns.single().htmlApp)
+        assertEquals(allQuick - QuickQuestion.SUMMARY, vm.state.value.quickQuestions)
+        assertTrue(vm.state.value.canAskQuick)
+    }
+
+    @Test
+    fun aQuickQuestionTappedAgainWhileItsAnswerIsBeingWritten_isSentOnce() = runTest(dispatcher) {
+        val question = QuickQuestion.WHY_IT_MATTERS.question
+        val api = FakeApi().apply {
+            explainResults += idle()
+            askResults += ExplicaResult.Success(AskResponse(chat = listOf(turn(question, "running"))))
+            askResults += ExplicaResult.Success(AskResponse(chat = listOf(turn(question, "done", html = "<p>r</p>"))))
+        }
+
+        val vm = viewModel(api)
+        advanceUntilIdle()
+
+        vm.ask(question)
+        runCurrent()
+        vm.ask(question)
+        runCurrent()
+        assertEquals(listOf<String?>(question), api.questions)
+
+        advanceUntilIdle()
+        assertEquals(listOf<String?>(question, null), api.questions)
+        assertEquals(1, vm.state.value.turns.size)
+    }
+
+    @Test
+    fun anotherQuickQuestion_isIgnoredWhileAnAnswerIsBeingWritten() = runTest(dispatcher) {
+        val first = QuickQuestion.SUMMARY.question
+        val api = FakeApi().apply {
+            explainResults += idle()
+            askResults += ExplicaResult.Success(AskResponse(chat = listOf(turn(first, "running"))))
+            askResults += ExplicaResult.Success(AskResponse(chat = listOf(turn(first, "done", html = "<p>r</p>"))))
+        }
+
+        val vm = viewModel(api)
+        advanceUntilIdle()
+
+        vm.ask(first)
+        runCurrent()
+        vm.ask(QuickQuestion.TERMS.question)
+        runCurrent()
+        assertEquals(listOf<String?>(first), api.questions)
+
+        advanceUntilIdle()
+        assertEquals(listOf<String?>(first, null), api.questions)
+        assertEquals(1, vm.state.value.turns.size)
+    }
+
+    @Test
+    fun aQuickQuestion_isIgnoredWhileTheExplanationIsBeingWritten_andWorksOnceItIsDone() = runTest(dispatcher) {
+        val question = QuickQuestion.BACKGROUND.question
+        val api = FakeApi().apply {
+            explainResults += idle()
+            explainResults += running(stage = "writing")
+            explainResults += done()
+            askResults += ExplicaResult.Success(AskResponse(chat = listOf(turn(question, "done", html = "<p>r</p>"))))
+        }
+
+        val vm = viewModel(api)
+        advanceUntilIdle()
+        vm.explain()
+        runCurrent()
+
+        // The chips stay on screen, disabled, so the bar keeps its height.
+        assertEquals(ExplicaPhase.LOADING, vm.state.value.phase)
+        assertEquals(allQuick, vm.state.value.quickQuestions)
+        assertFalse(vm.state.value.canAskQuick)
+        vm.ask(question)
+        runCurrent()
+        assertTrue(api.questions.isEmpty())
+
+        advanceUntilIdle()
+        assertEquals(ExplicaPhase.READY, vm.state.value.phase)
+        assertEquals(allQuick, vm.state.value.quickQuestions)
+        assertTrue(vm.state.value.canAskQuick)
+
+        vm.ask(question)
+        advanceUntilIdle()
+        assertEquals(listOf<String?>(question), api.questions)
+        assertEquals(allQuick - QuickQuestion.BACKGROUND, vm.state.value.quickQuestions)
+    }
+
+    @Test
+    fun aQuickQuestionAskedInAnEarlierVisit_staysHiddenWhenTheScreenOpensAgain() = runTest(dispatcher) {
+        val api = FakeApi().apply {
+            explainResults += idle(
+                chat = listOf(
+                    turn(QuickQuestion.SUMMARY.question, "done", html = "<p>r</p>"),
+                    turn(QuickQuestion.TERMS.question, "done", html = "<p>r</p>"),
+                )
+            )
+        }
+
+        val vm = viewModel(api)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(QuickQuestion.WHY_IT_MATTERS, QuickQuestion.BACKGROUND),
+            vm.state.value.quickQuestions,
+        )
+    }
+
+    @Test
+    fun aRejectedQuickQuestion_bringsItsChipBack() = runTest(dispatcher) {
+        val question = QuickQuestion.SUMMARY.question
+        val api = FakeApi().apply {
+            explainResults += done()
+            askResults += ExplicaResult.Failure(FailureKind.UNAUTHORIZED, "Cheia Miniflux nu e recunoscută.")
+        }
+
+        val vm = viewModel(api)
+        advanceUntilIdle()
+
+        vm.ask(question)
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.turns.isEmpty())
+        assertEquals(allQuick, vm.state.value.quickQuestions)
+        assertTrue(vm.state.value.canAskQuick)
+        assertEquals(FailureKind.UNAUTHORIZED, vm.state.value.askFailure?.kind)
+    }
 }

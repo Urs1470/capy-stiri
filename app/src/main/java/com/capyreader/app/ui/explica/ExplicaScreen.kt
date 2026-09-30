@@ -3,6 +3,7 @@ package com.capyreader.app.ui.explica
 import android.net.Uri
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -40,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -221,9 +224,12 @@ fun ExplicaView(
                         enabled = state.canAsk && !state.asking,
                         showExplain = state.phase == ExplicaPhase.IDLE,
                         canExplain = state.canStartExplanation,
+                        quickQuestions = state.quickQuestions,
+                        canAskQuick = state.canAskQuick,
                         onDraftChange = onDraftChange,
                         onSend = onSend,
                         onExplain = onExplain,
+                        onAsk = onAsk,
                     )
                 }
             },
@@ -405,7 +411,8 @@ private fun ResizeForKeyboard() {
 /**
  * The bar's surface reaches the bottom edge of the window and takes the keyboard (or the navigation bar)
  * as its own padding, so its color also fills the space behind the keyboard. The shortcut chips, when
- * shown, sit above the input inside the same surface.
+ * shown, sit above the input inside the same surface. The side padding is on the rows, not on the column,
+ * so the chips scroll right up to the edge of the screen.
  */
 @Composable
 private fun MessageBar(
@@ -414,9 +421,12 @@ private fun MessageBar(
     enabled: Boolean,
     showExplain: Boolean,
     canExplain: Boolean,
+    quickQuestions: List<QuickQuestion>,
+    canAskQuick: Boolean,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onExplain: () -> Unit,
+    onAsk: (String) -> Unit,
 ) {
     Surface(tonalElevation = 3.dp) {
         Column(
@@ -425,16 +435,25 @@ private fun MessageBar(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(vertical = 8.dp),
         ) {
-            if (showExplain) {
-                ShortcutRow(enabled = canExplain, onExplain = onExplain)
+            if (showExplain || quickQuestions.isNotEmpty()) {
+                ShortcutRow(
+                    showExplain = showExplain,
+                    canExplain = canExplain,
+                    quickQuestions = quickQuestions,
+                    canAskQuick = canAskQuick,
+                    onExplain = onExplain,
+                    onAsk = onAsk,
+                )
             }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
             ) {
                 OutlinedTextField(
                     value = draft,
@@ -466,23 +485,46 @@ private fun MessageBar(
 
 /**
  * One-tap shortcuts above the input. The explanation is one of them because it costs a generation
- * from a shared quota, so it never starts by itself.
+ * from a shared quota, so it never starts by itself. After it come the fixed questions ([QuickQuestion]),
+ * each sent as a question of its own. The row scrolls sideways when the chips don't fit the screen.
  */
 @Composable
-private fun ShortcutRow(enabled: Boolean, onExplain: () -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AssistChip(
-            onClick = onExplain,
-            enabled = enabled,
-            label = { Text(stringResource(R.string.explica_explain)) },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Rounded.AutoAwesome,
-                    contentDescription = null,
-                    modifier = Modifier.size(AssistChipDefaults.IconSize),
-                )
-            },
-        )
+private fun ShortcutRow(
+    showExplain: Boolean,
+    canExplain: Boolean,
+    quickQuestions: List<QuickQuestion>,
+    canAskQuick: Boolean,
+    onExplain: () -> Unit,
+    onAsk: (String) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp),
+    ) {
+        if (showExplain) {
+            AssistChip(
+                onClick = onExplain,
+                enabled = canExplain,
+                label = { Text(stringResource(R.string.explica_explain)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(AssistChipDefaults.IconSize),
+                    )
+                },
+            )
+        }
+
+        quickQuestions.forEach { quick ->
+            SuggestionChip(
+                onClick = { onAsk(quick.question) },
+                enabled = canAskQuick,
+                label = { Text(stringResource(quick.label)) },
+            )
+        }
     }
 }
 

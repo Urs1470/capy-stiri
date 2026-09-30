@@ -10,6 +10,10 @@
     <string name="explica_input_hint">Ask about this story</string>
     <string name="explica_idle_hint">Ask anything about this story, or tap Explain for a written explanation. Nothing is generated until you do.</string>
     <string name="explica_explain">Explain</string>
+    <string name="explica_chip_summary">Summary</string>
+    <string name="explica_chip_terms">Terms</string>
+    <string name="explica_chip_why">Why it matters</string>
+    <string name="explica_chip_background">Background</string>
     <string name="explica_send">Send</string>
     <string name="explica_loading">Loading…</string>
     <string name="explica_working">Working…</string>
