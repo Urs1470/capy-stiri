@@ -2,5 +2,6 @@ package com.jocmp.capy.common
 
 import com.jocmp.capy.Folder
 
+// This fork: the digest's sections come first, in their own order, then the other folders alphabetically.
 fun List<Folder>.sortedByTitle() =
-    sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
+    sortedWith(compareBy(DigestFolderOrder) { it.title })
