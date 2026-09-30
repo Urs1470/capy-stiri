@@ -13,9 +13,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 
 // shareArticle is what the share buttons call: a digest story goes out as text, everything else as before.
+// A plain Application: the app's own one starts Koin and this test never stops it, which broke the tests after it.
 @RunWith(RobolectricTestRunner::class)
+@Config(application = android.app.Application::class)
 class ShareArticleTest {
     /** Records what would be started, so the test doesn't depend on how the framework starts activities. */
     private class RecordingContext(base: Context) : ContextWrapper(base) {
