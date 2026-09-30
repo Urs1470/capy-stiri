@@ -69,7 +69,8 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
   - Share as text (`DigestShare.kt`, `HtmlToPlainText.kt`): sharing a story of the digest sends its title, its text
     (paragraphs, the "Ce înseamnă" quote and the source line, no HTML; converted with `Mallet`) and the link of the
     first source unless the text has it; any other article is shared as a link, as before.
-  - `DigestModule.kt`: the Koin definition, included by `explicaModule`.
+  - Morning sync (`MorningSync*.kt`, see "Morning sync and notification" below).
+  - `DigestModule.kt`: the Koin definitions, included by `explicaModule`.
 - Folder order: `DigestFolderOrder` and `DIGEST_SECTION_ORDER` (`capy/.../common/DigestFolderOrder.kt`) put the
   sections in the digest's order ("00 Azi", "Republica Moldova", "România", "Economie", "Bursă", "Geopolitică și
   știri globale", "AI", "Tehnologie — domeniul meu") ahead of every other folder, which stay alphabetical. A title
@@ -77,13 +78,15 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
   "AI". `Account.folders` already sorts with `sortedByTitle()`, so the drawer, the swipe up to the next section and
   "open next feed" after mark all read follow it, as does the feed edit dialog.
 - Tests: `app/src/test/.../ui/explica/` (client with a fake OkHttp interceptor, ViewModel with a fake API, the
-  chips) and `app/src/test/.../ui/digest/` (folder order, staleness with an injectable clock, HTML to text, share
-  text; `ShareArticleTest` needs Robolectric).
+  chips, the daily cap, the day entry, the saved explanations with a temporary folder and a clock moved by hand, the bar
+  of the screen on Robolectric) and `app/src/test/.../ui/digest/` (folder order, staleness with an injectable clock, HTML
+  to text, share text, the morning sync: next run across time zones and summer time, the queue and the work on
+  WorkManager's test helpers; `ShareArticleTest` and the work tests need Robolectric).
 - Contact points in upstream files (small, additive): `build.gradle.kts` (`EXPLICA_URL`,
   `EXPLICA_FEED_PREFIX`), `Route.kt` (`Route.Explica`), `App.kt` (the entry), `ArticleDetailScreen.kt`,
   `ArticleView.kt`, `ArticleTopBar.kt` (the button, only when `canExplain`), `KoinSetupModules.kt`,
   `app/src/nightly/res/values/strings.xml` (app name); for the later additions: `MainActivity.kt` (`onStart`
-  reports the open), `ArticleScreen.kt` (one `SyncOnOpenEffect` call), `ContextShareArticleExt.kt` (what
+  reports the open and keeps the morning sync queued), `ArticleScreen.kt` (one `SyncOnOpenEffect` call), `ContextShareArticleExt.kt` (what
   `shareArticle` sends) and `capy/.../common/FolderListExt.kt` (`sortedByTitle` of folders uses the digest order).
 - `.github/workflows/build-stiri.yml`: tests, signed APK, release of this repo. Upstream's own workflows
   are disabled in this repository.
@@ -134,6 +137,46 @@ Limits of this first version:
 The tests in `ui/explica/` run the real screens on Robolectric (Android 15): the selection, the toolbar item, the
 painting, taps, the sheets and the reader's content and top bar. What they can't show is how it looks, a long press
 (none started in any attempt) and where in a line a finger lands: Robolectric's text has no real font metrics.
+
+## Morning sync and notification
+
+Around 06:20 on the phone's clock (`MORNING_SYNC_TIME`; the digest is published about 06:10) the app syncs by itself and
+the entry of the day, "00 Azi", raises one notification. Code: `ui/digest/MorningSync*.kt`.
+
+How upstream does background work, which this follows: `RefreshScheduler` queues one periodic job (`RefreshFeedsWorker`,
+every two hours by default, `refresher/RefreshInterval.kt`) when an account is created (`LoginViewModel`,
+`AddAccountViewModel`) or the interval is changed in Settings, and WorkManager keeps it across restarts. The job is
+`FeedRefresher.refresh()`: refresh the account, then `NotificationHelper.notify`, which raises a notification for each new
+unread article of a feed whose notification flag is on (Settings > Notifications, per feed, off for every feed at first).
+Periodic work can't be set to a time of day, and a foreground refresh (opening the app, pull to refresh) never notifies.
+
+- A chain of one-time jobs. `MorningSyncScheduler` queues one `MorningSyncWorker` that waits until the next 06:20
+  (`nextMorningSync`: java.time on the calendar of the phone's time zone, so summer time changes the distance between
+  two syncs and not the time of day; an injectable clock and zone) and needs a network, like the periodic job. Every day
+  has its own unique name, `digest_morning_sync_<moment>` ("2026-10-02T06:20+03:00"), queued with `KEEP`: queueing is
+  harmless to repeat, and a run can queue the next day without cancelling itself, which replacing its own name would do.
+- Every run (`MorningSync.run`) queues the next day first, so nothing after it can break the chain, then does
+  `FeedRefresher.refresh()`: the same refresh, the same Wi-Fi-only rule, the same notifications as the periodic job. When
+  the refresh did not go through, WorkManager tries again (three attempts, its own back-off).
+- Where it is queued: upstream queues its work only at login and in Settings, so nothing would queue it for an account that
+  exists already. `MainActivity.onStart`, where the sync on open is, calls `keepMorningSync(hasAccount)` at every open:
+  with an account the next day is queued (nothing happens when it is) or the chain is cancelled when the account is not due
+  it; without an account whatever a removed account left is cancelled. A new login is queued at the next open.
+- Who it is for: a Miniflux account (password or API token) with a feed of the digest (a URL under `EXPLICA_FEED_PREFIX`),
+  and only while the refresh interval is not "Manually only", as upstream's notifications are. For any other account the
+  chain is cancelled, and a run that finds it is not due any more ends the chain.
+- The notification is upstream's, per feed; no new code raises one. `MorningSync` turns the flag of the day feed (the URL
+  `.../sectiuni/00-azi.xml`) on, once per account (the mark is `day_notification_enabled_<account id>` in the `digest`
+  preferences file): before the refresh when the account has that feed already, so that the morning's entry is announced,
+  and after it when only that refresh brought the feed in, then for the next days (announcing all it holds at once would
+  be a burst, not one a day). After that the choice is the reader's: turn it off in Settings > Notifications > "00 Azi" and
+  it stays off; turn it on there by hand if it was never turned on. The other stories notify only when the reader turned
+  them on, as upstream.
+- Limits: the time is not exact, because WorkManager runs the job when the system lets it (in Doze often later, even hours
+  later; the notification then comes with it, or with the two-hourly refresh, or the sync on open). Android 13 and later
+  need the notification permission, which the app asks for when Settings > Notifications is opened. A story that a foreground
+  refresh brought in before 06:20 is not announced. A phone that was off for days announces each day entry it missed, one
+  notification each.
 
 ## Building
 

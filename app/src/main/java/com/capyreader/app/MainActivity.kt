@@ -12,6 +12,7 @@ import com.capyreader.app.ui.App
 import com.capyreader.app.ui.DeepLink
 import com.capyreader.app.ui.Route
 import com.capyreader.app.ui.digest.SyncOnOpen
+import com.capyreader.app.ui.digest.keepMorningSync
 import com.jocmp.capy.ArticleStatus
 import org.koin.android.ext.android.get
 import org.koin.android.ext.android.inject
@@ -40,6 +41,8 @@ class MainActivity : BaseActivity() {
         super.onStart()
         // This fork: an open refreshes the list when the last refresh is old (see SyncOnOpen).
         if (hasAccount) get<SyncOnOpen>().onOpen()
+        // This fork: the morning sync of the digest is kept queued while the account is due it (see MorningSync).
+        keepMorningSync(hasAccount)
     }
 
     override fun onNewIntent(intent: Intent) {
