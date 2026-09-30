@@ -27,6 +27,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -70,8 +72,9 @@ import org.koin.core.parameter.parametersOf
 private val MAX_CONTENT_WIDTH = 640.dp
 
 /**
- * The explainer of one story of the daily digest: the AI explanation, suggested questions and a chat,
- * from the news explainer server. Reached from the article's top bar ([canExplain]).
+ * The explainer of one story of the daily digest: a chat about the story and, when the reader asks for
+ * it, the AI explanation with suggested questions, from the news explainer server. Reached from the
+ * article's top bar ([canExplain]).
  */
 @Composable
 fun ExplicaScreen(
@@ -90,6 +93,7 @@ fun ExplicaScreen(
         onDraftChange = viewModel::setDraft,
         onSend = viewModel::send,
         onAsk = viewModel::ask,
+        onExplain = viewModel::explain,
         onRetry = viewModel::retry,
         onOpenLink = { url -> linkOpener.open(Uri.parse(url)) },
     )
@@ -97,6 +101,14 @@ fun ExplicaScreen(
 
 private sealed interface Entry {
     val key: String
+}
+
+private data object OpeningEntry : Entry {
+    override val key = "opening"
+}
+
+private data object HintEntry : Entry {
+    override val key = "hint"
 }
 
 private data object ExplanationEntry : Entry {
@@ -124,6 +136,7 @@ fun ExplicaView(
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onAsk: (String) -> Unit,
+    onExplain: () -> Unit,
     onRetry: () -> Unit,
     onOpenLink: (String) -> Unit,
 ) {
@@ -131,7 +144,13 @@ fun ExplicaView(
 
     val entries = remember(state.phase, state.suggestions, state.turns, state.asking, state.askFailure) {
         buildList<Entry> {
-            add(ExplanationEntry)
+            // Before the explanation is asked for there is no explanation section, only the chat (or a hint).
+            when (state.phase) {
+                ExplicaPhase.OPENING -> add(OpeningEntry)
+                ExplicaPhase.IDLE -> if (state.turns.isEmpty()) add(HintEntry)
+                ExplicaPhase.LOADING, ExplicaPhase.READY, ExplicaPhase.FAILED -> add(ExplanationEntry)
+            }
+
             state.turns.forEachIndexed { index, turn -> add(TurnEntry(index, turn)) }
 
             if (state.phase == ExplicaPhase.READY && !state.asking && state.suggestions.isNotEmpty()) {
@@ -148,6 +167,13 @@ fun ExplicaView(
     LaunchedEffect(state.turns.size) {
         if (state.turns.isNotEmpty()) {
             listState.animateScrollToItem(entries.lastIndex)
+        }
+    }
+
+    // The explanation section sits above the chat: started after some questions, it would open out of sight.
+    LaunchedEffect(state.phase) {
+        if (state.phase == ExplicaPhase.LOADING) {
+            listState.animateScrollToItem(0)
         }
     }
 
@@ -186,13 +212,18 @@ fun ExplicaView(
                 )
             },
             bottomBar = {
-                if (state.phase == ExplicaPhase.READY) {
+                // Only a failed explanation takes the bar away. While the story is opening or the explanation is
+                // being written the bar stays, disabled, so the keyboard and the layout don't jump.
+                if (state.phase != ExplicaPhase.FAILED) {
                     MessageBar(
                         draft = state.draft,
                         canSend = state.canSend,
-                        asking = state.asking,
+                        enabled = state.canAsk && !state.asking,
+                        showExplain = state.phase == ExplicaPhase.IDLE,
+                        canExplain = state.canStartExplanation,
                         onDraftChange = onDraftChange,
                         onSend = onSend,
+                        onExplain = onExplain,
                     )
                 }
             },
@@ -213,6 +244,12 @@ fun ExplicaView(
                 ) {
                     itemsIndexed(entries, key = { _, entry -> entry.key }) { _, entry ->
                         when (entry) {
+                            is OpeningEntry -> ProgressRow(stringResource(R.string.explica_loading))
+                            is HintEntry -> Text(
+                                text = stringResource(R.string.explica_idle_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             is ExplanationEntry -> ExplanationSection(state, onRetry, onOpenLink)
                             is TurnEntry -> TurnItem(entry.turn, onOpenLink)
                             is SuggestionsEntry -> Suggestions(state.suggestions, onAsk)
@@ -267,6 +304,9 @@ private fun ExplanationSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            // The section is drawn only once the explanation has been asked for.
+            ExplicaPhase.OPENING, ExplicaPhase.IDLE -> Unit
         }
     }
 }
@@ -364,50 +404,85 @@ private fun ResizeForKeyboard() {
 
 /**
  * The bar's surface reaches the bottom edge of the window and takes the keyboard (or the navigation bar)
- * as its own padding, so its color also fills the space behind the keyboard.
+ * as its own padding, so its color also fills the space behind the keyboard. The shortcut chips, when
+ * shown, sit above the input inside the same surface.
  */
 @Composable
 private fun MessageBar(
     draft: String,
     canSend: Boolean,
-    asking: Boolean,
+    enabled: Boolean,
+    showExplain: Boolean,
+    canExplain: Boolean,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
+    onExplain: () -> Unit,
 ) {
     Surface(tonalElevation = 3.dp) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = onDraftChange,
-                enabled = !asking,
-                placeholder = { Text(stringResource(R.string.explica_input_hint)) },
-                shape = RoundedCornerShape(28.dp),
-                maxLines = 4,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
-                modifier = Modifier.weight(1f),
-            )
-            FilledIconButton(
-                onClick = onSend,
-                enabled = canSend,
+            if (showExplain) {
+                ShortcutRow(enabled = canExplain, onExplain = onExplain)
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.Send,
-                    contentDescription = stringResource(R.string.explica_send),
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = onDraftChange,
+                    enabled = enabled,
+                    placeholder = { Text(stringResource(R.string.explica_input_hint)) },
+                    shape = RoundedCornerShape(28.dp),
+                    maxLines = 4,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+                    modifier = Modifier.weight(1f),
                 )
+                FilledIconButton(
+                    onClick = onSend,
+                    enabled = canSend,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.Send,
+                        contentDescription = stringResource(R.string.explica_send),
+                    )
+                }
             }
         }
+    }
+}
+
+/**
+ * One-tap shortcuts above the input. The explanation is one of them because it costs a generation
+ * from a shared quota, so it never starts by itself.
+ */
+@Composable
+private fun ShortcutRow(enabled: Boolean, onExplain: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        AssistChip(
+            onClick = onExplain,
+            enabled = enabled,
+            label = { Text(stringResource(R.string.explica_explain)) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(AssistChipDefaults.IconSize),
+                )
+            },
+        )
     }
 }
 

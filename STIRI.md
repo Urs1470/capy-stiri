@@ -2,9 +2,15 @@
 
 A personal build of [jocmp/capyreader](https://github.com/jocmp/capyreader) (GPL-3.0) with one addition:
 for the stories of a daily news digest kept in Miniflux, an **Explain** button in the article's top bar
-opens a native screen (Material You) with an AI explanation of the story, suggested questions and a
-chat. The words come from a small server (`tools/stiri-explica/` in Ion's Knowledge vault); this app only
-draws them.
+opens a native screen (Material You) with a chat about the story and, on request, an AI explanation with
+suggested questions. The words come from a small server (`tools/stiri-explica/` in Ion's Knowledge
+vault); this app only draws them.
+
+Opening the screen never starts a generation. It makes one read-only call (`explain` with `start:false`)
+and shows what exists: the explanation if it is done, its progress if it is being written, or, when
+there is none, the story's title and any earlier chat, with a message field and an **Explain** chip above
+it. A quick question can be asked at once (the server answers from the story alone); the explanation
+is written only when the chip is tapped.
 
 Nothing else changes: other feeds, other account types and the reader behave as upstream. The build
 installs next to the Play Store app (`com.capyreader.app.nightly`, named "Capy News").
@@ -12,9 +18,11 @@ installs next to the Play Store app (`com.capyreader.app.nightly`, named "Capy N
 ## What was added
 
 - New package `app/src/main/java/com/capyreader/app/ui/explica/`: `ExplicaClient` (OkHttp; the Miniflux
-  API token as `X-Auth-Token`, the Miniflux entry id = the article id), `ExplicaViewModel` (polls
-  `explain`, then the chat), `ExplicaScreen` (Compose; the server's HTML goes through `Mallet.flatten`
-  and `ArticleBody`, so it follows the reader's font settings), `ExplicaModule` (Koin, and `canExplain`).
+  API token as `X-Auth-Token`, the Miniflux entry id = the article id; `start:false` is sent only for the
+  read-only call), `ExplicaViewModel` (phases `OPENING`, `IDLE`, `LOADING`, `READY`, `FAILED`: reads the
+  state on open, starts the explanation only on `explain()`, polls it, then the chat), `ExplicaScreen`
+  (Compose; the server's HTML goes through `Mallet.flatten` and `ArticleBody`, so it follows the reader's
+  font settings), `ExplicaModule` (Koin, and `canExplain`).
 - Strings: `res/values/explica_strings.xml`. The app stays in English everywhere: no translations of the fork's
   own strings, and `androidResources.localeFilters` in `app/build.gradle.kts` packages only the English resources
   (`locales_config.xml` offers only `en`), whatever the language of the phone.

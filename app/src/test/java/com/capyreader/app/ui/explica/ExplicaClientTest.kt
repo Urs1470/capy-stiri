@@ -10,6 +10,7 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
@@ -67,6 +68,51 @@ class ExplicaClientTest {
         api.explain(entryId = 7, retry = true)
 
         assertEquals("""{"entry_id":7,"retry":true}""", bodyOf(lastRequest))
+    }
+
+    @Test
+    fun explain_startFalseIsSentOnlyWhenAsked() = runTest {
+        val api = client { it.reply(200, """{"status":"idle"}""") }
+
+        api.explain(entryId = 7, start = false)
+        assertEquals("""{"entry_id":7,"start":false}""", bodyOf(lastRequest))
+
+        api.explain(entryId = 7, retry = true, start = false)
+        assertEquals("""{"entry_id":7,"retry":true,"start":false}""", bodyOf(lastRequest))
+
+        // The server starts the explanation unless told otherwise, so the default and `start = true`
+        // send no `start` at all.
+        api.explain(entryId = 7)
+        assertEquals("""{"entry_id":7}""", bodyOf(lastRequest))
+        assertFalse(bodyOf(lastRequest).contains("start"))
+
+        api.explain(entryId = 7, start = true)
+        assertEquals("""{"entry_id":7}""", bodyOf(lastRequest))
+
+        api.explain(entryId = 7, retry = true)
+        assertEquals("""{"entry_id":7,"retry":true}""", bodyOf(lastRequest))
+    }
+
+    @Test
+    fun explain_readsAnIdleAnswer() = runTest {
+        val api = client {
+            it.reply(
+                200,
+                """
+                {"status":"idle","title":"Drone","link":"https://ipn.md/a","suggest":[],
+                 "chat":[{"q":"What is a drone?","status":"done","html_app":"<p>An aircraft.</p>","meta":"m"}]}
+                """.trimIndent()
+            )
+        }
+
+        val value = (api.explain(entryId = 1, start = false) as ExplicaResult.Success).value
+
+        assertEquals(STATUS_IDLE, value.status)
+        assertEquals("Drone", value.title)
+        assertEquals("https://ipn.md/a", value.link)
+        assertTrue(value.suggest.isEmpty())
+        assertEquals("", value.htmlApp)
+        assertEquals("<p>An aircraft.</p>", value.chat.single().htmlApp)
     }
 
     @Test

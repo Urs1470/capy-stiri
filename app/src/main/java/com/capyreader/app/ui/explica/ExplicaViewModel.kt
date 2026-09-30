@@ -11,18 +11,27 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 enum class ExplicaPhase {
+    /** The screen just opened and one read-only call is finding out where the story stands. Nothing is generated. */
+    OPENING,
+
+    /** No explanation exists and none is being written: questions can be asked, and Explain starts the explanation. */
+    IDLE,
+
     /** The explanation is being written; [ExplicaState.explanationHtml] holds what exists so far. */
     LOADING,
 
     /** The explanation is done; questions can be asked. */
     READY,
 
-    /** The explanation can't be shown; [ExplicaState.failure] says why and Retry starts it again. */
+    /**
+     * The story can't be shown; [ExplicaState.failure] says why. Retry writes the explanation again if that
+     * is what failed, and reads the state again if opening failed.
+     */
     FAILED,
 }
 
 data class ExplicaState(
-    val phase: ExplicaPhase = ExplicaPhase.LOADING,
+    val phase: ExplicaPhase = ExplicaPhase.OPENING,
     val title: String = "",
     val articleUrl: String = "",
     val stage: String = "",
@@ -35,14 +44,24 @@ data class ExplicaState(
     val failure: ExplicaResult.Failure? = null,
     val askFailure: ExplicaResult.Failure? = null,
 ) {
+    /** Questions are taken before the explanation exists and after it, never while it is being written. */
+    val canAsk: Boolean
+        get() = phase == ExplicaPhase.IDLE || phase == ExplicaPhase.READY
+
     val canSend: Boolean
-        get() = phase == ExplicaPhase.READY && !asking && draft.isNotBlank()
+        get() = canAsk && !asking && draft.isNotBlank()
+
+    /** The Explain shortcut: only while there is no explanation, and not while an answer is being written. */
+    val canStartExplanation: Boolean
+        get() = phase == ExplicaPhase.IDLE && !asking
 }
 
 /**
- * Backs the explainer screen of one story: polls `explain` until the explanation is done, then the
- * chat (`ask`) while an answer is being written. [entryId] is the Miniflux entry id, which is the
- * article id of a Miniflux account.
+ * Backs the explainer screen of one story. Opening it only reads the state of the story (`explain`
+ * with `start = false`), so nothing is generated until the reader asks: a question is answered from
+ * the story alone, and [explain] starts the written explanation, which is polled until it is done.
+ * The chat (`ask`) is polled while an answer is being written. [entryId] is the Miniflux entry id,
+ * which is the article id of a Miniflux account.
  */
 class ExplicaViewModel(
     private val api: ExplicaApi,
@@ -56,6 +75,12 @@ class ExplicaViewModel(
     private var loadJob: Job? = null
     private var chatJob: Job? = null
 
+    /**
+     * Once the reader has asked for the explanation (or the server says it failed), Retry writes it again.
+     * Before that, a failed open has produced nothing to write: Retry only reads the state again.
+     */
+    private var explanationAsked = false
+
     init {
         if (entryId <= 0) {
             _state.value = ExplicaState(
@@ -63,13 +88,21 @@ class ExplicaViewModel(
                 failure = ExplicaResult.Failure(FailureKind.NOT_FOUND),
             )
         } else {
-            load(retry = false)
+            load(start = false, retry = false)
+        }
+    }
+
+    /** The Explain shortcut: asks the server to write the explanation of the story (~30 s, from a shared quota). */
+    fun explain() {
+        if (entryId > 0 && _state.value.canStartExplanation) {
+            explanationAsked = true
+            load(start = true, retry = false)
         }
     }
 
     fun retry() {
         if (entryId > 0) {
-            load(retry = true)
+            load(start = explanationAsked, retry = explanationAsked)
         }
     }
 
@@ -90,7 +123,7 @@ class ExplicaViewModel(
         val text = question.trim()
         val current = _state.value
 
-        if (text.isEmpty() || current.phase != ExplicaPhase.READY || current.asking) {
+        if (text.isEmpty() || !current.canAsk || current.asking) {
             return
         }
 
@@ -133,12 +166,23 @@ class ExplicaViewModel(
         }
     }
 
-    private fun load(retry: Boolean) {
+    /**
+     * With [start] `false` (opening the screen) every call only reads the state and never starts the
+     * explanation, so an `idle` answer ends the loop and a `running` one is followed until it is done.
+     * With [start] `true` (the Explain shortcut, or Retry after the explanation failed) the server starts
+     * the explanation on the first call and the loop follows its progress.
+     */
+    private fun load(start: Boolean, retry: Boolean) {
         loadJob?.cancel()
         chatJob?.cancel()
 
         _state.update {
-            it.copy(phase = ExplicaPhase.LOADING, failure = null, askFailure = null, asking = false)
+            it.copy(
+                phase = if (start) ExplicaPhase.LOADING else ExplicaPhase.OPENING,
+                failure = null,
+                askFailure = null,
+                asking = false,
+            )
         }
 
         loadJob = viewModelScope.launch {
@@ -146,7 +190,7 @@ class ExplicaViewModel(
             var networkFailures = 0
 
             while (true) {
-                when (val result = api.explain(entryId, retry = firstCall)) {
+                when (val result = api.explain(entryId, retry = firstCall, start = start)) {
                     is ExplicaResult.Success -> {
                         networkFailures = 0
                         firstCall = false
@@ -159,7 +203,14 @@ class ExplicaViewModel(
                                 return@launch
                             }
 
+                            STATUS_IDLE -> {
+                                showIdle(response)
+                                pollChat()
+                                return@launch
+                            }
+
                             STATUS_ERROR -> {
+                                explanationAsked = true
                                 fail(
                                     ExplicaResult.Failure(FailureKind.SERVER, response.error),
                                     title = response.title,
@@ -216,6 +267,7 @@ class ExplicaViewModel(
     private fun showProgress(response: ExplainResponse) {
         _state.update {
             it.copy(
+                phase = ExplicaPhase.LOADING,
                 title = response.title.ifBlank { it.title },
                 stage = response.stage,
                 explanationHtml = response.partialApp.ifBlank { it.explanationHtml },
@@ -228,10 +280,27 @@ class ExplicaViewModel(
             it.copy(
                 phase = ExplicaPhase.READY,
                 title = response.title.ifBlank { it.title },
-                articleUrl = response.link,
+                articleUrl = response.link.ifBlank { it.articleUrl },
                 stage = "",
                 explanationHtml = response.htmlApp,
                 meta = response.meta,
+                suggestions = response.suggest,
+                turns = response.chat,
+                asking = response.chat.lastOrNull()?.isRunning == true,
+            )
+        }
+    }
+
+    /** No explanation yet: the title, the link and the chat the story already has, and no explanation section. */
+    private fun showIdle(response: ExplainResponse) {
+        _state.update {
+            it.copy(
+                phase = ExplicaPhase.IDLE,
+                title = response.title.ifBlank { it.title },
+                articleUrl = response.link.ifBlank { it.articleUrl },
+                stage = "",
+                explanationHtml = "",
+                meta = "",
                 suggestions = response.suggest,
                 turns = response.chat,
                 asking = response.chat.lastOrNull()?.isRunning == true,

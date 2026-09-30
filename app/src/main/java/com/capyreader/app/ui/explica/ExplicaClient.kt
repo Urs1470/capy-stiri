@@ -23,8 +23,12 @@ import kotlin.coroutines.resumeWithException
 
 /** What the explainer screen needs from the news explainer server (`tools/stiri-explica/server.py`). */
 interface ExplicaApi {
-    /** Starts the explanation of a story, or returns its progress or result. Poll until `status != running`. */
-    suspend fun explain(entryId: Long, retry: Boolean = false): ExplicaResult<ExplainResponse>
+    /**
+     * Returns the progress or result of the explanation of a story, and starts it when there is none.
+     * With [start] `false` the call only reads the state and never starts anything: it answers `idle`
+     * when no explanation was asked for. Poll until `status != running`.
+     */
+    suspend fun explain(entryId: Long, retry: Boolean = false, start: Boolean = true): ExplicaResult<ExplainResponse>
 
     /** Asks [question] about the story, or, with `null`, returns the chat so far (poll while a turn is running). */
     suspend fun ask(entryId: Long, question: String? = null): ExplicaResult<AskResponse>
@@ -47,10 +51,12 @@ class ExplicaClient(
 ) : ExplicaApi {
     private val base = baseUrl.toHttpUrl()
 
-    override suspend fun explain(entryId: Long, retry: Boolean): ExplicaResult<ExplainResponse> =
+    override suspend fun explain(entryId: Long, retry: Boolean, start: Boolean): ExplicaResult<ExplainResponse> =
         post("api/explain", ExplainResponse.serializer()) {
             put("entry_id", entryId)
             if (retry) put("retry", true)
+            // Sent only when false: without it the server behaves as before and starts the explanation.
+            if (!start) put("start", false)
         }
 
     override suspend fun ask(entryId: Long, question: String?): ExplicaResult<AskResponse> =

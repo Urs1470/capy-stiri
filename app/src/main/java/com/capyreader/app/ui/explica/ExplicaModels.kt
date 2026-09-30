@@ -7,6 +7,9 @@ const val STATUS_RUNNING = "running"
 const val STATUS_DONE = "done"
 const val STATUS_ERROR = "error"
 
+/** Only answers a read-only `explain` (`start = false`): no explanation exists and none is being written. */
+const val STATUS_IDLE = "idle"
+
 /**
  * One question and its answer, as the news explainer server sends it
  * (`POST /explica/api/ask`, field `chat`). [htmlApp] and [partialApp] are the answer in the
@@ -26,7 +29,10 @@ data class ExplicaTurn(
         get() = status == STATUS_RUNNING
 }
 
-/** `POST /explica/api/explain`: the explanation of one story, or its progress. */
+/**
+ * `POST /explica/api/explain`: the explanation of one story, or its progress. [status] is `done`,
+ * `running`, `error` or, after a read-only call, `idle` (then only [title], [link] and [chat] matter).
+ */
 @Serializable
 data class ExplainResponse(
     val status: String = "",
