@@ -1,6 +1,7 @@
 package com.capyreader.app.ui.explica
 
 import com.capyreader.app.BuildConfig
+import com.capyreader.app.ui.digest.digestModule
 import com.jocmp.capy.Account
 import com.jocmp.capy.accounts.Source
 import com.jocmp.capy.accounts.baseHttpClient
@@ -17,6 +18,9 @@ fun canExplain(
 }
 
 internal val explicaModule = module {
+    // The fork's other digest features (sync on open) load with this module.
+    includes(digestModule)
+
     // The server knows the reader by the Miniflux API token, which the account keeps as its password.
     single<ExplicaApi> {
         ExplicaClient(

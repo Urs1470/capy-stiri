@@ -11,7 +11,9 @@ import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.ui.App
 import com.capyreader.app.ui.DeepLink
 import com.capyreader.app.ui.Route
+import com.capyreader.app.ui.digest.SyncOnOpen
 import com.jocmp.capy.ArticleStatus
+import org.koin.android.ext.android.get
 import org.koin.android.ext.android.inject
 
 class MainActivity : BaseActivity() {
@@ -32,6 +34,12 @@ class MainActivity : BaseActivity() {
                 onDeepLinkConsumed = { deepLink = null },
             )
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // This fork: an open refreshes the list when the last refresh is old (see SyncOnOpen).
+        if (hasAccount) get<SyncOnOpen>().onOpen()
     }
 
     override fun onNewIntent(intent: Intent) {

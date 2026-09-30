@@ -79,6 +79,7 @@ import com.capyreader.app.ui.collectChangesWithCurrent
 import com.capyreader.app.ui.components.ArticleSearch
 import com.capyreader.app.ui.components.LocalSnackbarHost
 import com.capyreader.app.ui.components.SearchState
+import com.capyreader.app.ui.digest.SyncOnOpenEffect
 import com.capyreader.app.ui.provideLinkOpener
 import com.capyreader.app.ui.rememberDisplayTimeFormats
 import com.capyreader.app.ui.rememberLazyListState
@@ -152,6 +153,8 @@ fun ArticleScreen(
     val presentedArticles = rememberPresentedArticles(articleList)
     val articles = presentedArticles.items
     val searchResults = viewModel.searchResults.collectAsLazyPagingItems()
+    // This fork: opening the app refreshes the list when the last refresh is old.
+    SyncOnOpenEffect(onRefresh = { viewModel.refreshAll() })
 
     val onMarkAllRead = { range: MarkRead ->
         viewModel.markAllRead(
