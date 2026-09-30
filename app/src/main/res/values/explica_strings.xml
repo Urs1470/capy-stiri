@@ -2,6 +2,7 @@
 <!-- News explainer (this fork only): AI explanation and chat for the stories of the daily digest. -->
 <resources>
     <string name="explica_action">Explain</string>
+    <string name="explica_swipe_option">Explain with AI</string>
     <string name="explica_title">Explain</string>
     <string name="explica_heading">AI explanation</string>
     <string name="explica_back">Back</string>

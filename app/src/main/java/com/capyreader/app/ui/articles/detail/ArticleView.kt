@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.SnackbarHost
@@ -36,6 +37,7 @@ import com.capyreader.app.common.Media
 import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.preferences.ArticleVerticalSwipe
 import com.capyreader.app.preferences.ArticleVerticalSwipe.DISABLED
+import com.capyreader.app.preferences.ArticleVerticalSwipe.EXPLAIN_WITH_AI
 import com.capyreader.app.preferences.ArticleVerticalSwipe.LOAD_FULL_CONTENT
 import com.capyreader.app.preferences.ArticleVerticalSwipe.NEXT_ARTICLE
 import com.capyreader.app.preferences.ArticleVerticalSwipe.OPEN_ARTICLE_IN_BROWSER
@@ -114,6 +116,7 @@ fun ArticleView(
             OPEN_ARTICLE_IN_BROWSER -> openLink()
             PREVIOUS_ARTICLE -> selectPrevious()
             NEXT_ARTICLE -> selectNext()
+            EXPLAIN_WITH_AI -> if (canExplain) onExplain()
             DISABLED -> {}
         }
     }
@@ -147,6 +150,7 @@ fun ArticleView(
                     hasPreviousArticle = hasPrevious,
                     pinToolbars = pinToolbars,
                     hasNextArticle = hasNext,
+                    canExplain = canExplain,
                 ) {
                     HorizontalReaderPager(
                         enabled = enableHorizontalPager,
@@ -222,6 +226,7 @@ fun ArticlePullRefresh(
     hasPreviousArticle: Boolean,
     pinToolbars: Boolean,
     onSwipe: (swipe: ArticleVerticalSwipe) -> Unit,
+    canExplain: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val (topSwipe, bottomSwipe) = rememberSwipePreferences()
@@ -231,11 +236,14 @@ fun ArticlePullRefresh(
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
+    // the AI gestures only work on stories that have the Explain button (this fork)
     val enableTopSwipe = topSwipe.enabled &&
-            (topSwipe != PREVIOUS_ARTICLE || (topSwipe.openArticle && hasPreviousArticle))
+            (topSwipe != PREVIOUS_ARTICLE || (topSwipe.openArticle && hasPreviousArticle)) &&
+            (topSwipe != EXPLAIN_WITH_AI || canExplain)
 
     val enableBottomSwipe = bottomSwipe.enabled &&
-            (bottomSwipe != NEXT_ARTICLE || (bottomSwipe.openArticle && hasNextArticle))
+            (bottomSwipe != NEXT_ARTICLE || (bottomSwipe.openArticle && hasNextArticle)) &&
+            (bottomSwipe != EXPLAIN_WITH_AI || canExplain)
 
     SwipeRefresh(
         onRefresh = { onSwipe(topSwipe) },
@@ -269,6 +277,7 @@ fun swipeIcon(
     return when (swipe) {
         LOAD_FULL_CONTENT -> Icons.AutoMirrored.Rounded.Article
         OPEN_ARTICLE_IN_BROWSER -> Icons.AutoMirrored.Rounded.OpenInNew
+        EXPLAIN_WITH_AI -> Icons.Outlined.AutoAwesome
         else -> relatedArticleIcon
     }
 }

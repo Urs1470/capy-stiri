@@ -15,7 +15,12 @@ installs next to the Play Store app (`com.capyreader.app.nightly`, named "Capy È
   API token as `X-Auth-Token`, the Miniflux entry id = the article id), `ExplicaViewModel` (polls
   `explain`, then the chat), `ExplicaScreen` (Compose; the server's HTML goes through `Mallet.flatten`
   and `ArticleBody`, so it follows the reader's font settings), `ExplicaModule` (Koin, and `canExplain`).
-- Strings: `res/values/explica_strings.xml`, `res/values-ro/explica_strings.xml`.
+- Strings: `res/values/explica_strings.xml`. The app stays in English everywhere: no translations of the fork's
+  own strings, and `androidResources.localeFilters` in `app/build.gradle.kts` packages only the English resources
+  (`locales_config.xml` offers only `en`), whatever the language of the phone.
+- AI gestures: `ArticleVerticalSwipe.EXPLAIN_WITH_AI` ("Explain with AI") is one more choice for the reader's
+  swipe down and swipe up rows in Settings > Gestures. It opens the same screen as the Explain button, only on
+  stories that have the button, and is never the default (`ArticleView.kt`, `ArticleVerticalSwipe.kt`).
 - Tests: `app/src/test/.../ui/explica/` (client with a fake OkHttp interceptor, ViewModel with a fake API).
 - Contact points in upstream files (small, additive): `build.gradle.kts` (`EXPLICA_URL`,
   `EXPLICA_FEED_PREFIX`), `Route.kt` (`Route.Explica`), `App.kt` (the entry), `ArticleDetailScreen.kt`,

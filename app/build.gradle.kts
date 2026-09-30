@@ -42,6 +42,11 @@ android {
         }
     }
 
+    // This fork stays in English everywhere, whatever the language of the phone (Ion, 2026-09-30).
+    androidResources {
+        localeFilters += listOf("en")
+    }
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
