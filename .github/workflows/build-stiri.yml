@@ -29,7 +29,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Explainer tests
-        run: ./gradlew :app:testFreeDebugUnitTest --tests 'com.capyreader.app.ui.explica.*' --tests 'com.capyreader.app.preferences.ArticleVerticalSwipeTest' --build-cache
+        run: ./gradlew :app:testFreeDebugUnitTest --tests 'com.capyreader.app.ui.explica.*' --tests 'com.capyreader.app.preferences.ArticleVerticalSwipeTest' --tests 'com.capyreader.app.ui.digest.*' --build-cache
       - name: Signing key
         env:
           ENCODED_RELEASE_KEYSTORE: ${{ secrets.ENCODED_RELEASE_KEYSTORE }}
