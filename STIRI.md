@@ -97,6 +97,16 @@ the digest's feeds when the account has any (the reading feeds stay in their fol
 The button shows only for a Miniflux account signed in with an **API token**, on stories whose feed URL
 starts with `https://news.iupif.org/sectiuni/` (the digest's feeds).
 
+## Drawer
+
+With the digest in the account, the folders come in two groups (Ion, 2026-10-01: "there are quite a lot of them now"):
+**Daily digest**, the digest's sections, each a plain row with its own icon (a section is one folder with one feed of the
+same name, so the arrow that opened a copy of it is gone), and **Reading**, the other folders, shown without the leading
+number that orders them ("3 - Educație, istorie, știință" is shown as "Educație, istorie, știință" and stays third). Each
+group folds from its title, like Folders. An account without the digest keeps the usual Folders group. Code:
+`ui/digest/DigestDrawer.kt`; contact points: `FeedList.kt` (the folders block), `FolderRow.kt` (a `label`),
+`FeedGroup.kt` (`DIGEST`, `READING`).
+
 ## Highlights
 
 On the same stories, in the reader and in the AI screen (the explanation and each answer), the reader selects text,

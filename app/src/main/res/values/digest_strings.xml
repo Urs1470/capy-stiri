@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The drawer's groups when the account has the daily digest (this fork only). -->
+<resources>
+    <string name="digest_drawer_digest">Daily digest</string>
+    <string name="digest_drawer_reading">Reading</string>
+</resources>

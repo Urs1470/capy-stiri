@@ -36,6 +36,9 @@ import com.capyreader.app.ui.articles.CountBadge
 import com.capyreader.app.ui.articles.ListTitle
 import com.capyreader.app.ui.articles.SavedSearchRow
 import com.capyreader.app.ui.articles.list.MarkAllReadMenu
+import com.capyreader.app.ui.digest.DigestSectionRow
+import com.capyreader.app.ui.digest.readingFolderLabel
+import com.capyreader.app.ui.digest.splitDigestFolders
 import com.capyreader.app.ui.fixtures.PreviewKoinApplication
 import com.capyreader.app.ui.navigationTitle
 import com.capyreader.app.ui.savedSearchNavTitle
@@ -225,13 +228,39 @@ fun FeedList(
             }
         }
 
-        if (folders.isNotEmpty()) {
+        // This fork: the digest's sections and the reading folders in two groups (see DigestDrawer).
+        val split = remember(folders) { splitDigestFolders(folders) }
+
+        if (split.digest.isNotEmpty()) {
             FeedListDivider()
             FeedGroupList(
-                type = FeedGroup.FOLDERS,
-                title = stringResource(R.string.nav_headline_folders)
+                type = FeedGroup.DIGEST,
+                title = stringResource(R.string.digest_drawer_digest),
             ) {
-                folders.forEach { folder ->
+                split.digest.forEach { folder ->
+                    DigestSectionRow(
+                        folder = folder,
+                        filter = filter,
+                        source = source,
+                        onSelectFolder = onSelectFolder,
+                        onSelectFeed = onSelectFeed,
+                        onMarkAllRead = onMarkAllRead,
+                    )
+                }
+            }
+        }
+
+        if (split.reading.isNotEmpty()) {
+            FeedListDivider()
+            FeedGroupList(
+                type = if (split.digest.isEmpty()) FeedGroup.FOLDERS else FeedGroup.READING,
+                title = if (split.digest.isEmpty()) {
+                    stringResource(R.string.nav_headline_folders)
+                } else {
+                    stringResource(R.string.digest_drawer_reading)
+                },
+            ) {
+                split.reading.forEach { folder ->
                     FolderRow(
                         folder = folder,
                         onFolderSelect = onSelectFolder,
@@ -241,6 +270,7 @@ fun FeedList(
                         onMarkAllRead = onMarkAllRead,
                         filter = filter,
                         source = source,
+                        label = if (split.digest.isEmpty()) folder.title else readingFolderLabel(folder.title),
                     )
                 }
             }

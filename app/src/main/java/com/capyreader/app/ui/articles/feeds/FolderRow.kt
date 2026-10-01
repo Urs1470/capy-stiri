@@ -35,6 +35,7 @@ fun FolderRow(
     onFeedSelect: (feed: Feed) -> Unit,
     onMarkAllRead: (filter: ArticleFilter) -> Unit,
     source: Source,
+    label: String = folder.title,
 ) {
     val actions = LocalFolderActions.current
     val isFolderSelected = filter.isFolderSelected(folder)
@@ -62,7 +63,7 @@ fun FolderRow(
                     )
                 },
                 label = {
-                    ListTitle(folder.title)
+                    ListTitle(label)
                 },
             )
 
