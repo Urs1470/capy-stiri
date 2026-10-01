@@ -47,7 +47,7 @@ enum class QuickQuestion(@StringRes override val label: Int, override val questi
 }
 
 /**
- * The chips of the day entry (the story of the feed "00 Azi"), which has no article and no explanation: the server
+ * The chips of the day entry (the story of the feed "Conceptul zilei"), which has no article and no explanation: the server
  * answers each question from all the other stories of the day. They take the place of the story's chips, and
  * like them carry nothing personal, because the repository is public.
  */

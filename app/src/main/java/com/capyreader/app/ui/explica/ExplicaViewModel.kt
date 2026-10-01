@@ -45,7 +45,7 @@ data class ExplicaState(
     val askFailure: ExplicaResult.Failure? = null,
     /** The last daily cap the server reported; an answer without one leaves it in place. */
     val quota: Quota? = null,
-    /** This is the entry of the day ("00 Azi"): no explanation to start, other questions, see [DayQuestion]. */
+    /** This is the entry of the day ("Conceptul zilei"): no explanation to start, other questions, see [DayQuestion]. */
     val day: Boolean = false,
 ) {
     /** Questions are taken before the explanation exists and after it, never while it is being written. */

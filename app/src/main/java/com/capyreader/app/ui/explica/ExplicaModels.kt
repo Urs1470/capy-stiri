@@ -83,7 +83,7 @@ internal object LenientQuotaSerializer : JsonTransformingSerializer<Quota?>(Quot
 /**
  * `POST /explica/api/explain`: the explanation of one story, or its progress. [status] is `done`,
  * `running`, `error` or, after a read-only call, `idle` (then only [title], [link] and [chat] matter).
- * [day] is true for the entry of the day (the story of the feed "00 Azi"): it has no explanation, and the
+ * [day] is true for the entry of the day (the story of the feed "Conceptul zilei"): it has no explanation, and the
  * server answers its questions from all the other stories of the day.
  */
 @Serializable

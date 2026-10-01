@@ -57,7 +57,7 @@ class MorningSyncWiringTest {
 
     private val prefix = "https://news.iupif.org/sectiuni/"
     private val digestFeeds = listOf(
-        Feed(id = "10", subscriptionID = "10", title = "00 Azi", feedURL = prefix + "00-azi.xml"),
+        Feed(id = "10", subscriptionID = "10", title = "Conceptul zilei", feedURL = prefix + "conceptul-zilei.xml"),
         Feed(id = "11", subscriptionID = "11", title = "România", feedURL = prefix + "romania.xml"),
     )
 

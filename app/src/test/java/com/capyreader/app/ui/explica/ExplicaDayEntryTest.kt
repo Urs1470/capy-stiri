@@ -22,7 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** The entry of the day ("00 Azi"): no explanation to start, other chips, questions answered from the day's stories. */
+/** The entry of the day ("Conceptul zilei"): no explanation to start, other chips, questions answered from the day's stories. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExplicaDayEntryTest {
     private val dispatcher = StandardTestDispatcher()

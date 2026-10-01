@@ -40,7 +40,7 @@ class MorningSyncTest {
         enableNotifications = notifications,
     )
 
-    private val day = feed("10", prefix + "00-azi.xml", "00 Azi")
+    private val day = feed("10", prefix + "conceptul-zilei.xml", "Conceptul zilei")
     private val moldova = feed("11", prefix + "republica-moldova.xml", "Republica Moldova")
     private val other = feed("12", "https://hotnews.ro/rss", "HotNews")
 
@@ -128,9 +128,17 @@ class MorningSyncTest {
         assertEquals(day, dayFeedOf(listOf(moldova, day, other), prefix))
         assertNull(dayFeedOf(listOf(moldova, other), prefix))
         assertNull(dayFeedOf(emptyList(), prefix))
-        // The name alone is not enough: a feed somebody else calls "00 Azi" is not the digest's.
-        assertNull(dayFeedOf(listOf(feed("5", "https://example.com/feed.xml", "00 Azi")), prefix))
-        assertEquals("00-azi.xml", DAY_FEED_FILE)
+        // The name alone is not enough: a feed somebody else calls "Conceptul zilei" is not the digest's.
+        assertNull(dayFeedOf(listOf(feed("5", "https://example.com/feed.xml", "Conceptul zilei")), prefix))
+        assertEquals("conceptul-zilei.xml", DAY_FEED_FILE)
+    }
+
+    @Test
+    fun theDayFeedUnderItsFormerAddress_isStillTheDayFeed_untilThePhoneSyncsTheNewOne() {
+        val former = feed("10", prefix + "00-azi.xml", "00 Azi")
+
+        assertEquals(former, dayFeedOf(listOf(moldova, former, other), prefix))
+        assertEquals(day, dayFeedOf(listOf(former, day), prefix))
     }
 
     // run

@@ -24,7 +24,7 @@ class DigestFolderOrderTest {
             "AI",
             "Republica Moldova",
             "Geopolitică și știri globale",
-            "00 Azi",
+            "Conceptul zilei",
             "Economie",
             "România",
         )
@@ -36,7 +36,7 @@ class DigestFolderOrderTest {
     fun theOrderListIsTheDigestsOrder() {
         assertEquals(
             listOf(
-                "00 Azi",
+                "Conceptul zilei",
                 "Republica Moldova",
                 "România",
                 "Economie",
@@ -135,6 +135,16 @@ class DigestFolderOrderTest {
         assertNull(DigestFolderOrder.rank("Bursa2"))
         assertNull(DigestFolderOrder.rank("Romanian news"))
         assertNull(DigestFolderOrder.rank("Republic"))
+    }
+
+    @Test
+    fun theEntryOfTheDayIsFirst_underItsNameAndUnderTheFormerOne() {
+        assertEquals(0, DigestFolderOrder.rank("Conceptul zilei"))
+        assertEquals(0, DigestFolderOrder.rank("00 Azi"))
+        assertEquals(
+            listOf("Conceptul zilei", "Republica Moldova", "2 - Tech", "3 - Educatie / Istorie / Stiinta"),
+            order("3 - Educatie / Istorie / Stiinta", "Republica Moldova", "2 - Tech", "Conceptul zilei"),
+        )
     }
 
     @Test

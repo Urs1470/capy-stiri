@@ -18,8 +18,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.getKoin
 
-/** The file name, under the digest's feed prefix, of the feed of the entry of the day ("00 Azi"). */
-const val DAY_FEED_FILE = "00-azi.xml"
+/** The file name, under the digest's feed prefix, of the feed of the entry of the day ("Conceptul zilei"). */
+const val DAY_FEED_FILE = "conceptul-zilei.xml"
+
+/** Its name until 2026-10-01 ("00 Azi"): the server renames the feed in place, so a phone not synced since still has it. */
+const val OLD_DAY_FEED_FILE = "00-azi.xml"
 
 /** A Miniflux account that has at least one of the digest's feeds, whose URLs start with [feedPrefix]. */
 fun hasDigest(source: Source, feeds: List<Feed>, feedPrefix: String): Boolean {
@@ -31,11 +34,12 @@ fun hasDigest(source: Source, feeds: List<Feed>, feedPrefix: String): Boolean {
 /** The feed of the entry of the day, if the account has it. */
 fun dayFeedOf(feeds: List<Feed>, feedPrefix: String): Feed? {
     return feeds.firstOrNull { it.feedURL == feedPrefix + DAY_FEED_FILE }
+        ?: feeds.firstOrNull { it.feedURL == feedPrefix + OLD_DAY_FEED_FILE }
 }
 
 /**
  * The morning sync of the digest (this fork): around [MORNING_SYNC_TIME] the app syncs by itself, so that the digest
- * that is published about 06:10 is already there, and the entry of the day ("00 Azi") raises one notification.
+ * that is published about 06:10 is already there, and the entry of the day ("Conceptul zilei") raises one notification.
  *
  * It is a chain of one-day pieces of work ([MorningSyncScheduler]); every run ([run], started by
  * [MorningSyncWorker]) queues the next day's first and then does what the periodic refresh does: the same

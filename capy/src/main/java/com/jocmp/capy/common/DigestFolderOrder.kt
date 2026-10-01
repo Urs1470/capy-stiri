@@ -8,10 +8,11 @@ import java.text.Normalizer
  * folder, so this list is the one place that decides the order of the drawer, of the swipe up to the next
  * section and of "open next feed" after mark all read.
  *
- * "00 Azi" is the category of the day's stories and goes first.
+ * "Conceptul zilei" is the category of the entry of the day and goes first (until 2026-10-01 it was "00 Azi", see
+ * [FORMER_SECTION_NAMES]).
  */
 val DIGEST_SECTION_ORDER = listOf(
-    "00 Azi",
+    "Conceptul zilei",
     "Republica Moldova",
     "România",
     "Economie",
@@ -20,6 +21,9 @@ val DIGEST_SECTION_ORDER = listOf(
     "AI",
     "Tehnologie — domeniul meu",
 )
+
+/** Names the digest's sections had before, with the section they are now: a phone not synced since still shows them. */
+val FORMER_SECTION_NAMES = mapOf("00 Azi" to "Conceptul zilei")
 
 /**
  * Orders folder titles: the digest's sections first, in the order of [DIGEST_SECTION_ORDER], then every
@@ -39,7 +43,7 @@ object DigestFolderOrder : Comparator<String> {
 
     /** The position of [title] in [DIGEST_SECTION_ORDER], or null when it isn't one of the digest's sections. */
     fun rank(title: String): Int? {
-        val words = wordsOf(title)
+        val words = wordsOf(FORMER_SECTION_NAMES[title.trim()] ?: title)
 
         if (words.isEmpty()) {
             return null
