@@ -11,13 +11,16 @@ import org.koin.dsl.binds
 import org.koin.dsl.module
 import java.io.File
 
-/** The explain button is for stories of the digest feeds, in a Miniflux account signed in with an API token. */
+/**
+ * The Explain button and the highlights are for every article of a Miniflux account signed in with an API token: the
+ * stories of the digest and, since 2026-10-01, the reading feeds (Ion: highlights and Explain on the long reads too).
+ * The server tells them apart: a digest story is explained as news, any other entry as a reading article.
+ */
 fun canExplain(
     source: Source,
     feedURL: String?,
-    feedPrefix: String = BuildConfig.EXPLICA_FEED_PREFIX,
 ): Boolean {
-    return source == Source.MINIFLUX_TOKEN && feedURL?.startsWith(feedPrefix) == true
+    return source == Source.MINIFLUX_TOKEN && !feedURL.isNullOrBlank()
 }
 
 internal val explicaModule = module {

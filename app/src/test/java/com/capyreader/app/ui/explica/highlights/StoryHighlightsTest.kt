@@ -135,13 +135,12 @@ class StoryHighlightsTest {
     }
 
     @Test
-    fun aStoryOfAnotherFeed_isLeftAlone_andNothingIsAskedOfTheServer() {
-        show(story("https://example.org/feed.xml"))
+    fun aReadingArticleOfTheSameAccount_getsItsHighlightsToo() {
+        // Since 2026-10-01 the reading feeds have highlights and Explain like the digest (the server tells them apart).
+        show(story("https://aeon.co/feed.rss"))
 
-        screen.stepUntil(limit = 300) { false }
-
-        assertEquals(emptyList<Triple<Int, Int, Color>>(), screen.backgrounds(council[0]))
-        assertEquals(emptyList<String>(), api.calls)
+        screen.assertSoon("not painted") { screen.backgrounds(council[0]).isNotEmpty() }
+        assertTrue(api.calls.isNotEmpty())
     }
 
     @Test

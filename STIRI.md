@@ -99,6 +99,14 @@ the digest comes about 06:10, so yesterday's digest and anything published in th
 The button shows only for a Miniflux account signed in with an **API token**, on stories whose feed URL
 starts with `https://news.iupif.org/sectiuni/` (the digest's feeds).
 
+## Reading articles
+
+Since 2026-10-01 the Explain button and the highlights are on every article of a Miniflux account signed in with an
+API token, not only on the digest's stories (`canExplain`). The server tells them apart: an entry it published is a
+digest story, any other is a reading article, which it reads from the reader's own Miniflux entry and explains as an
+essay or an analysis (the author's idea, how it is argued, what is debatable). The weekly reading ("1 - Lectura
+săptămânii", chosen by the morning routine on Sundays) is a reading folder like the others.
+
 ## Drawer
 
 With the digest in the account, the folders come in two groups (Ion, 2026-10-01: "there are quite a lot of them now"):

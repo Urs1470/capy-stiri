@@ -234,21 +234,14 @@ class ExplicaClientTest {
     }
 
     @Test
-    fun canExplain_onlyForDigestFeedsOfAMinifluxAccountWithAnApiToken() {
-        val digest = "https://news.iupif.org/sectiuni/republica-moldova.xml"
+    fun canExplain_everyArticleOfAMinifluxAccountWithAnApiToken_digestAndReading() {
+        val token = com.jocmp.capy.accounts.Source.MINIFLUX_TOKEN
 
-        assertTrue(canExplain(com.jocmp.capy.accounts.Source.MINIFLUX_TOKEN, digest, "https://news.iupif.org/sectiuni/"))
-        assertEquals(
-            false,
-            canExplain(com.jocmp.capy.accounts.Source.MINIFLUX, digest, "https://news.iupif.org/sectiuni/"),
-        )
-        assertEquals(
-            false,
-            canExplain(com.jocmp.capy.accounts.Source.MINIFLUX_TOKEN, "https://hotnews.ro/rss", "https://news.iupif.org/sectiuni/"),
-        )
-        assertEquals(
-            false,
-            canExplain(com.jocmp.capy.accounts.Source.MINIFLUX_TOKEN, null, "https://news.iupif.org/sectiuni/"),
-        )
+        assertTrue(canExplain(token, "https://news.iupif.org/sectiuni/republica-moldova.xml"))
+        assertTrue(canExplain(token, "https://aeon.co/feed.rss"))
+        assertEquals(false, canExplain(com.jocmp.capy.accounts.Source.MINIFLUX, "https://news.iupif.org/sectiuni/ai.xml"))
+        assertEquals(false, canExplain(com.jocmp.capy.accounts.Source.LOCAL, "https://aeon.co/feed.rss"))
+        assertEquals(false, canExplain(token, null))
+        assertEquals(false, canExplain(token, ""))
     }
 }
