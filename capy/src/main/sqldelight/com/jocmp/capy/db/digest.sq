@@ -1,0 +1,3 @@
+-- This fork (STIRI.md): whether the account has the news digest's feeds, which changes what Today shows (ByToday).
+hasDigestFeeds:
+SELECT EXISTS(SELECT 1 FROM feeds WHERE feed_url LIKE 'https://news.iupif.org/sectiuni/%');

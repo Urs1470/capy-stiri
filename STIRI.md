@@ -15,7 +15,9 @@ is written only when the chip is tapped.
 Other feeds, other account types and the reader behave as upstream, with three changes: the app syncs when it is
 opened (see below), folders named like the digest's sections come first in the folder list, and Today shows only
 the digest's feeds when the account has any (the reading feeds stay in their folders; `articlesByStatus.sq`, where
-`publishedSince` is set only by Today; an account without digest feeds keeps the upstream Today). The build installs next to the Play Store app (`com.capyreader.app.nightly`, named
+`publishedSince` is set only by Today; an account without digest feeds keeps the upstream Today). With the digest, Today
+is also the news day, from 04:00 local time to 04:00 the next day (`NewsDay.kt`, `digest.sq`), not the last 24 hours:
+the digest comes about 06:10, so yesterday's digest and anything published in the night stay out. The build installs next to the Play Store app (`com.capyreader.app.nightly`, named
 "Capy News").
 
 ## What was added

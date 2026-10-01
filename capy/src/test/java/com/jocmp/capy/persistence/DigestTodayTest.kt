@@ -4,6 +4,7 @@ import com.jocmp.capy.ArticleStatus
 import com.jocmp.capy.InMemoryDatabaseProvider
 import com.jocmp.capy.MarkRead
 import com.jocmp.capy.articles.SortOrder
+import com.jocmp.capy.common.newsDayStart
 import com.jocmp.capy.db.Database
 import com.jocmp.capy.fixtures.ArticleFixture
 import com.jocmp.capy.fixtures.FeedFixture
@@ -76,6 +77,44 @@ class DigestTodayTest {
 
         assertEquals(setOf(story.id, concept.id, essay.id), all())
         assertEquals(3, records.byStatus.count(ArticleStatus.ALL).executeAsOne())
+    }
+
+    @Test
+    fun theNewsDayStartsAt4_andBefore4ItIsStillTheDayBefore() {
+        val zone = java.time.ZoneId.of("Europe/Chisinau")
+        fun at(month: Int, day: Int, hour: Int, minute: Int = 0) =
+            java.time.ZonedDateTime.of(2026, month, day, hour, minute, 0, 0, zone).toOffsetDateTime()
+        fun start(month: Int, day: Int) = at(month, day, 4).toEpochSecond()
+
+        assertEquals(start(10, 1), newsDayStart(at(10, 1, 9, 25), zone))
+        assertEquals(start(10, 1), newsDayStart(at(10, 1, 4), zone))
+        assertEquals(start(10, 1), newsDayStart(at(10, 2, 3, 59), zone))
+        assertEquals(start(9, 30), newsDayStart(at(9, 30, 23), zone))
+        // the change to winter time (25 October): the day still starts at 04:00 on the clock
+        assertEquals(start(10, 25), newsDayStart(at(10, 25, 12), zone))
+    }
+
+    @Test
+    fun withDigestFeeds_todayIsTheNewsDay_soYesterdaysDigestAndTheNightBeforeFourStayOut() {
+        val zone = java.time.ZoneId.systemDefault()
+        val section = feeds.create(feedURL = "https://news.iupif.org/sectiuni/republica-moldova.xml", title = "Republica Moldova")
+        fun at(day: Int, hour: Int, minute: Int) =
+            java.time.ZonedDateTime.of(2026, 10, day, hour, minute, 0, 0, zone).toEpochSecond()
+
+        val yesterday = articles.create(feed = section, read = false,
+            publishedAt = java.time.ZonedDateTime.of(2026, 9, 30, 16, 22, 0, 0, zone).toEpochSecond())
+        val night = articles.create(feed = section, read = false, publishedAt = at(1, 0, 5))
+        val digest = articles.create(feed = section, read = false, publishedAt = at(1, 6, 10))
+        val opened = java.time.ZonedDateTime.of(2026, 10, 1, 9, 25, 0, 0, zone).toOffsetDateTime()
+
+        val today = records.byToday
+            .all(ArticleStatus.ALL, limit = 50, offset = 0, sortOrder = SortOrder.NEWEST_FIRST, since = opened)
+            .executeAsList()
+            .map { it.id }
+
+        assertEquals(listOf(digest.id), today)
+        assertEquals(1, records.byToday.count(ArticleStatus.ALL, since = opened).executeAsOne())
+        assertEquals(setOf(yesterday.id, night.id, digest.id), all())
     }
 
     @Test

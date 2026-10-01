@@ -5,6 +5,7 @@ import com.jocmp.capy.Article
 import com.jocmp.capy.ArticleStatus
 import com.jocmp.capy.MarkRead
 import com.jocmp.capy.articles.SortOrder
+import com.jocmp.capy.common.newsDayStart
 import com.jocmp.capy.db.Database
 import com.jocmp.capy.persistence.listMapper
 import com.jocmp.capy.persistence.toStatusPair
@@ -132,6 +133,11 @@ class ByToday(private val database: Database) {
      * different times — agree on the Today window instead of drifting apart near the boundary.
      */
     private fun mapTodayStartDate(since: OffsetDateTime?): Long {
+        // This fork: with the news digest, Today is the news day (see newsDayStart), not the last 24 hours.
+        if (database.digestQueries.hasDigestFeeds().executeAsOne()) {
+            return newsDayStart(since ?: OffsetDateTime.now())
+        }
+
         return (since ?: OffsetDateTime.now()).minusHours(24).toEpochSecond()
     }
 }
