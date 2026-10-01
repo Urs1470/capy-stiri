@@ -31,6 +31,14 @@ android {
         versionCode = 1212
         versionName = "2026.07.1212"
 
+        // This fork: the build number from CI (`-PnewsBuild=N`, the run number of build-stiri.yml) makes every release a
+        // newer version, so Obtainium sees it (Ion, 2026-10-01): code = upstream × 1000 + N, name = "<upstream>.N", which
+        // is also the release's tag. Without it the build keeps the upstream version.
+        (findProperty("newsBuild") as String?)?.toIntOrNull()?.let { build ->
+            versionCode = versionCode!! * 1000 + build
+            versionName = "$versionName.$build"
+        }
+
         // News explainer (this fork): the server that explains the stories of the daily digest, and the
         // feeds whose stories get the Explain button.
         buildConfigField("String", "EXPLICA_URL", "\"https://stiri.iupif.org/explica/\"")

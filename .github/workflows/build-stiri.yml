@@ -3,7 +3,9 @@ name: Build Capy News
 # Personal build of this fork (see STIRI.md): runs the explainer tests, builds the signed
 # free/nightly APK ("Capy News", id com.capyreader.app.nightly) and puts it in a release of this
 # repository. Started by hand: Actions → Build Capy News → Run workflow, or
-#   gh workflow run build-stiri.yml --repo Urs1470/capy-stiri --ref stiri
+#   gh workflow run build-stiri.yml --repo Urs1470/capy-stiri --ref stiri-next
+# Every build is a newer version (versionCode = upstream × 1000 + run number, versionName = "<upstream>.<run number>"),
+# and the release's tag is that versionName, so Obtainium sees each release as an update (app/build.gradle.kts).
 
 on:
   workflow_dispatch:
@@ -29,7 +31,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Explainer tests
-        run: ./gradlew :app:testFreeDebugUnitTest --tests 'com.capyreader.app.ui.explica.*' --tests 'com.capyreader.app.preferences.ArticleVerticalSwipeTest' --tests 'com.capyreader.app.ui.digest.*' --build-cache
+        run: ./gradlew :app:testFreeDebugUnitTest --tests 'com.capyreader.app.ui.explica.*' --tests 'com.capyreader.app.preferences.ArticleVerticalSwipeTest' --tests 'com.capyreader.app.ui.digest.*' :capy:test --tests 'com.jocmp.capy.persistence.DigestTodayTest' --build-cache
       - name: Signing key
         env:
           ENCODED_RELEASE_KEYSTORE: ${{ secrets.ENCODED_RELEASE_KEYSTORE }}
@@ -44,21 +46,25 @@ jobs:
             echo "key_password=$PROP_KEY_PASSWORD"
           } > secrets.properties
       - name: Build APK
-        run: ./gradlew :app:assembleFreeNightly --build-cache
+        run: ./gradlew :app:assembleFreeNightly -PnewsBuild=${{ github.run_number }} --build-cache
       - name: Verify the signature
         run: |
           APK=app/build/outputs/apk/free/nightly/app-free-nightly.apk
           BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
           "$BT/apksigner" verify --verbose --print-certs "$APK"
           "$BT/aapt2" dump badging "$APK" | grep -E "^package:|application-label:'"
-          cp "$APK" "capy-stiri-${GITHUB_SHA::8}.apk"
+          VERSION=$("$BT/aapt2" dump badging "$APK" | sed -n "s/^package:.* versionName='\([^']*\)'.*/\1/p")
+          [[ "$VERSION" == *".${{ github.run_number }}" ]] || { echo "unexpected versionName: $VERSION"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          cp "$APK" "capy-news-$VERSION.apk"
       - name: Release
         uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: stiri-${{ github.run_number }}
+          tag_name: ${{ env.VERSION }}
           target_commitish: ${{ github.sha }}
-          name: Capy News ${{ github.run_number }} (${{ github.sha }})
-          prerelease: true
-          files: capy-stiri-*.apk
+          name: Capy News ${{ env.VERSION }}
+          body: Built from ${{ github.sha }}.
+          prerelease: false
+          files: capy-news-*.apk

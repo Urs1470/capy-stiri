@@ -12,9 +12,10 @@ there is none, the story's title and any earlier chat, with a message field and 
 it. A quick question can be asked at once (the server answers from the story alone); the explanation
 is written only when the chip is tapped.
 
-Other feeds, other account types and the reader behave as upstream, with two changes that apply to every
-account: the app syncs when it is opened (see below), and folders named like the digest's sections come first
-in the folder list. The build installs next to the Play Store app (`com.capyreader.app.nightly`, named
+Other feeds, other account types and the reader behave as upstream, with three changes: the app syncs when it is
+opened (see below), folders named like the digest's sections come first in the folder list, and Today shows only
+the digest's feeds when the account has any (the reading feeds stay in their folders; `articlesByStatus.sq`, where
+`publishedSince` is set only by Today; an account without digest feeds keeps the upstream Today). The build installs next to the Play Store app (`com.capyreader.app.nightly`, named
 "Capy News").
 
 ## What was added
@@ -44,7 +45,7 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
   `explica_requests_left`). At 0 nothing else changes: the server's own 429 text still shows as the error. The key is
   read leniently (`LenientQuotaSerializer`): `18.0` or `"18"` is 18, and a value that is not a quota is none, because a
   caption must never turn an answer into a failure.
-- The day entry: for the story of the feed "00 Azi" (the day's title, the "N articles from M sources" line and the concept
+- The day entry: for the story of the feed "Conceptul zilei" (until 2026-10-01 "00 Azi") (the day's title, the "N articles from M sources" line and the concept
   of the day) `explain` answers `"day": true`, never writes an explanation and answers questions from all the other
   stories of the day. For it the screen has no Explain chip (`ExplicaState.offersExplain`; `explain()` ignores the call
   too), the four story chips give way to four `DayQuestion` chips ("Top stories", "For Moldova", "Economy & markets", "What
@@ -74,7 +75,7 @@ in the folder list. The build installs next to the Play Store app (`com.capyread
   - Morning sync (`MorningSync*.kt`, see "Morning sync and notification" below).
   - `DigestModule.kt`: the Koin definitions, included by `explicaModule`.
 - Folder order: `DigestFolderOrder` and `DIGEST_SECTION_ORDER` (`capy/.../common/DigestFolderOrder.kt`) put the
-  sections in the digest's order ("00 Azi", "Republica Moldova", "România", "Economie", "Bursă", "Geopolitică și
+  sections in the digest's order ("Conceptul zilei", "Republica Moldova", "România", "Economie", "Bursă", "Geopolitică și
   știri globale", "AI", "Tehnologie — domeniul meu") ahead of every other folder, which stay alphabetical. A title
   matches a section by whole words, ignoring case and diacritics, so "Geopolitică" is the long name and "Aisle" is not
   "AI". `Account.folders` already sorts with `sortedByTitle()`, so the drawer, the swipe up to the next section and
@@ -134,7 +135,18 @@ Limits of this first version:
   title, say) is saved but not drawn. The explanation and an answer can't be highlighted while they are being written.
 - The server keeps the first color of a passage, so changing a color is a removal followed by a new highlight (a new
   id and time). If the new one is refused the old color is added back; if that fails too the highlight is gone.
-- The Highlight item is added at the end of the selection toolbar; on a narrow toolbar it can sit under the overflow.
+- Highlight is the first item of the selection toolbar. Compose collects the items up the tree, nearest first, so
+  an item added around a `SelectionContainer` comes after Copy, Select all and the apps that process text (seventh
+  on Ion's phone). `HighlightFirstToolbar` is the toolbar provider of the container: it hands the platform's own
+  provider the same items with Highlight moved to the front. The platform provider is read by a zero-size
+  `SelectionContainer` inside (it sets up the default one only where none is provided). Tested on the framework's
+  real floating `ActionMode` (`HighlightSelectionTest`).
+
+The **Highlights** page (drawer, under Today; Miniflux with an API token only) lists every highlight, one card per
+story, the story highlighted last first: `{"op": "all"}` gives `{"stories": [{entry_id, title, link, section,
+latest, highlights: [H, ...]}]}`. A tap opens the story in the reader; a story no longer on the phone says so and
+offers its source. Code: `HighlightsPageViewModel`, `highlights/HighlightsPage.kt`; contact points: `Route.kt`
+(`Highlights`), `App.kt` (its entry), `ArticleScreen.kt` and `FeedList.kt` (an `extraItems` slot in the drawer).
 
 The tests in `ui/explica/` run the real screens on Robolectric (Android 15): the selection, the toolbar item, the
 painting, taps, the sheets and the reader's content and top bar. What they can't show is how it looks, a long press
@@ -143,7 +155,7 @@ painting, taps, the sheets and the reader's content and top bar. What they can't
 ## Morning sync and notification
 
 Around 06:20 on the phone's clock (`MORNING_SYNC_TIME`; the digest is published about 06:10) the app syncs by itself and
-the entry of the day, "00 Azi", raises one notification. Code: `ui/digest/MorningSync*.kt`.
+the entry of the day, "Conceptul zilei", raises one notification. Code: `ui/digest/MorningSync*.kt`.
 
 How upstream does background work, which this follows: `RefreshScheduler` queues one periodic job (`RefreshFeedsWorker`,
 every two hours by default, `refresher/RefreshInterval.kt`) when an account is created (`LoginViewModel`,
@@ -168,10 +180,10 @@ Periodic work can't be set to a time of day, and a foreground refresh (opening t
   and only while the refresh interval is not "Manually only", as upstream's notifications are. For any other account the
   chain is cancelled, and a run that finds it is not due any more ends the chain.
 - The notification is upstream's, per feed; no new code raises one. `MorningSync` turns the flag of the day feed (the URL
-  `.../sectiuni/00-azi.xml`) on, once per account (the mark is `day_notification_enabled_<account id>` in the `digest`
+  `.../sectiuni/conceptul-zilei.xml`, or the former `00-azi.xml`) on, once per account (the mark is `day_notification_enabled_<account id>` in the `digest`
   preferences file): before the refresh when the account has that feed already, so that the morning's entry is announced,
   and after it when only that refresh brought the feed in, then for the next days (announcing all it holds at once would
-  be a burst, not one a day). After that the choice is the reader's: turn it off in Settings > Notifications > "00 Azi" and
+  be a burst, not one a day). After that the choice is the reader's: turn it off in Settings > Notifications > "Conceptul zilei" and
   it stays off; turn it on there by hand if it was never turned on. The other stories notify only when the reader turned
   them on, as upstream.
 - Limits: the time is not exact, because WorkManager runs the job when the system lets it: in Doze, or when the system puts
@@ -187,15 +199,18 @@ Locally (JDK 21, Android SDK with platform 37): `./gradlew :app:testFreeDebugUni
 'com.capyreader.app.ui.explica.*' --tests 'com.capyreader.app.ui.digest.*'`. On Windows, keep `TEMP` short and
 without `~` (JDK 21 fails at `Selector.open()` otherwise and Gradle can't start its daemon).
 
-Release: run the workflow. It needs these repository secrets: `ENCODED_RELEASE_KEYSTORE` (base64 of the
+Release: run the workflow. Every build is a newer version: `-PnewsBuild=<run number>` gives versionCode
+`upstream × 1000 + N` and versionName `<upstream>.N`, which is also the release's tag, so Obtainium sees each release
+as an update (a local build without the property keeps the upstream version and can't install over a release).
+It needs these repository secrets: `ENCODED_RELEASE_KEYSTORE` (base64 of the
 PKCS12 keystore), `PROP_STORE_PASSWORD`, `PROP_KEY_ALIAS`, `PROP_KEY_PASSWORD`.
 
 ## Following upstream
 
-Branch `main` mirrors upstream; the work is on `stiri`.
+Branch `main` mirrors upstream; the work is on `stiri-next` (`stiri` is the same work with the old author address).
 
     git fetch upstream
     git checkout main && git merge --ff-only upstream/main && git push origin main
-    git checkout stiri && git rebase main
+    git checkout stiri-next && git rebase main
 
 Conflicts are unlikely: the contact points are a few lines each.
