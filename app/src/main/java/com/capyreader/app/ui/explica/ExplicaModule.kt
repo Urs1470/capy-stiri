@@ -7,7 +7,7 @@ import com.jocmp.capy.accounts.Source
 import com.jocmp.capy.accounts.baseHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
-import org.koin.dsl.bind
+import org.koin.dsl.binds
 import org.koin.dsl.module
 import java.io.File
 
@@ -32,7 +32,7 @@ internal val explicaModule = module {
             baseUrl = BuildConfig.EXPLICA_URL,
             token = { get<Account>().preferences.password.get() },
         )
-    } bind HighlightsApi::class
+    } binds arrayOf(HighlightsApi::class, AllHighlightsApi::class)
     // The explainer goes through the copies kept on the phone (see SavedExplanationsApi).
     single<ExplicaApi> {
         SavedExplanationsApi(
@@ -50,6 +50,12 @@ internal val explicaModule = module {
         HighlightsViewModel(
             api = get(),
             entryId = parameters.get(),
+        )
+    }
+    viewModel {
+        HighlightsPageViewModel(
+            api = get(),
+            hasArticle = { articleID -> get<Account>().findArticle(articleID) != null },
         )
     }
 }

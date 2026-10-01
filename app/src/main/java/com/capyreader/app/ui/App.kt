@@ -46,6 +46,7 @@ import com.capyreader.app.ui.articles.media.MediaSceneStrategy
 import com.capyreader.app.ui.articles.media.MediaScreen
 import com.capyreader.app.ui.articles.rememberArticlePaneExpansion
 import com.capyreader.app.ui.explica.ExplicaScreen
+import com.capyreader.app.ui.explica.highlights.HighlightsPageScreen
 import com.capyreader.app.ui.shared.materialSharedAxisXIn
 import com.capyreader.app.ui.shared.materialSharedAxisXOut
 import com.capyreader.app.ui.settings.SettingsScreen
@@ -171,6 +172,7 @@ fun App(
                                 backStack.openArticle(id, searchQuery)
                             },
                             onNavigateToSettings = { backStack.add(Route.Settings) },
+                            onNavigateToHighlights = { backStack.add(Route.Highlights) },
                             selectedArticleID = (backStack.lastOrNull() as? Route.ArticleDetail)?.articleID,
                         )
                     }
@@ -209,6 +211,12 @@ fun App(
                         ExplicaScreen(
                             articleID = key.articleID,
                             onNavigateBack = { backStack.removeLastOrNull() },
+                        )
+                    }
+                    entry<Route.Highlights> {
+                        HighlightsPageScreen(
+                            onNavigateBack = { backStack.removeLastOrNull() },
+                            onOpenArticle = { id -> backStack.add(Route.ArticleDetail(id)) },
                         )
                     }
                     entry<Route.MediaViewer>(

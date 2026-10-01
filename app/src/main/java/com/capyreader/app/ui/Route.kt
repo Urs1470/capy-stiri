@@ -37,6 +37,10 @@ sealed class Route : NavKey {
     @Serializable
     data class Explica(val articleID: String) : Route()
 
+    /** Every highlight, one card per story (this fork). */
+    @Serializable
+    data object Highlights : Route()
+
     /**
      * Full-screen image viewer, rendered as an overlay above the list/detail panes (see
      * [com.capyreader.app.ui.articles.media.MediaSceneStrategy]). [Media] is already

@@ -25,4 +25,13 @@
     <string name="highlights_cause_unauthorized">Sign in again.</string>
     <string name="highlights_cause_unavailable">The server can\'t check your token right now.</string>
     <string name="highlights_cause_rate_limited">Too many requests.</string>
+    <string name="highlights_page_empty">No highlights yet. In a story of the digest, select some text and choose Highlight.</string>
+    <string name="highlights_page_story_gone">This story is no longer on the phone.</string>
+    <string name="highlights_page_open_source">Open source</string>
+    <string name="highlights_page_refresh">Refresh</string>
+    <string name="highlights_page_untitled">Untitled story</string>
+    <plurals name="highlights_page_count">
+        <item quantity="one">%d highlight</item>
+        <item quantity="other">%d highlights</item>
+    </plurals>
 </resources>

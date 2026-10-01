@@ -60,6 +60,11 @@ interface HighlightsApi {
     suspend fun removeHighlight(entryId: Long, id: String): ExplicaResult<Unit>
 }
 
+/** Every highlight of the reader, grouped by story (`op: all`), for the Highlights page. */
+interface AllHighlightsApi {
+    suspend fun allHighlights(): ExplicaResult<List<StoryHighlights>>
+}
+
 internal val ExplicaJson = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
@@ -74,8 +79,19 @@ class ExplicaClient(
     baseUrl: String,
     private val token: () -> String,
     private val json: Json = ExplicaJson,
-) : ExplicaApi, HighlightsApi {
+) : ExplicaApi, HighlightsApi, AllHighlightsApi {
     private val base = baseUrl.toHttpUrl()
+
+    override suspend fun allHighlights(): ExplicaResult<List<StoryHighlights>> {
+        val result = post("api/highlights", AllHighlightsResponse.serializer()) {
+            put("op", "all")
+        }
+
+        return when (result) {
+            is ExplicaResult.Success -> ExplicaResult.Success(result.value.stories)
+            is ExplicaResult.Failure -> result
+        }
+    }
 
     override suspend fun explain(entryId: Long, retry: Boolean, start: Boolean): ExplicaResult<ExplainResponse> =
         post("api/explain", ExplainResponse.serializer()) {

@@ -55,6 +55,7 @@ import com.capyreader.app.preferences.AfterReadAllBehavior
 import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.preferences.ArticleListVerticalSwipe
 import com.capyreader.app.ui.LocalAppDrawer
+import com.capyreader.app.ui.explica.highlights.HighlightsDrawerItem
 import com.capyreader.app.ui.LocalConnectivity
 import com.capyreader.app.ui.LocalLinkOpener
 import com.capyreader.app.ui.LocalTimeFormats
@@ -107,6 +108,7 @@ import org.koin.compose.koinInject
 fun ArticleScreen(
     onSelectArticle: (articleID: String, searchQuery: String?) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToHighlights: () -> Unit = {},
     viewModel: ArticleScreenViewModel = koinViewModel(),
     appPreferences: AppPreferences = koinInject(),
     selectedArticleID: String? = null,
@@ -460,6 +462,13 @@ fun ArticleScreen(
                     filter = filter,
                     statusCount = statusCount,
                     todayCount = todayCount,
+                    // This fork: the Highlights page, under Today.
+                    extraItems = {
+                        HighlightsDrawerItem(source = viewModel.source) {
+                            onNavigateToHighlights()
+                            coroutineScope.launchUI { drawerState.close() }
+                        }
+                    },
                 )
             }
         }

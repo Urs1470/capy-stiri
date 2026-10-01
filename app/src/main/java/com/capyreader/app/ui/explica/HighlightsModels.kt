@@ -1,5 +1,6 @@
 package com.capyreader.app.ui.explica
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -67,6 +68,27 @@ internal data class HighlightsResponse(
 @Serializable
 internal data class HighlightResponse(
     val highlight: Highlight? = null,
+)
+
+/**
+ * One story of the Highlights page: its highlights (oldest first) and what the server copied of the story when the first
+ * one was made. [entryId] is the Miniflux entry id, which is the article id in the app; [latest] is the newest
+ * highlight, in unix seconds. The title, link and section are empty when the story was gone already.
+ */
+@Serializable
+data class StoryHighlights(
+    @SerialName("entry_id") val entryId: Long,
+    val title: String = "",
+    val link: String = "",
+    val section: String = "",
+    val latest: Long = 0,
+    val highlights: List<Highlight> = emptyList(),
+)
+
+/** `{"stories": [...]}`, the answer to `op: all`, the story highlighted last first. */
+@Serializable
+internal data class AllHighlightsResponse(
+    val stories: List<StoryHighlights> = emptyList(),
 )
 
 /** `{"ok": true}`, the answer to `op: remove`. */

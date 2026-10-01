@@ -76,7 +76,7 @@ private fun HighlightColor.label(): String {
 }
 
 @Composable
-private fun whereLabel(where: String): String {
+internal fun whereLabel(where: String): String {
     val answer = HighlightWhere.answerIndex(where)
 
     return when {

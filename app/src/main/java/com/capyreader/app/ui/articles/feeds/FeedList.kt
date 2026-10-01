@@ -67,6 +67,7 @@ fun FeedList(
     onFeedAdded: (feedID: String) -> Unit,
     onBeforeFeedAdd: () -> Unit = {},
     onNavigateToSettings: () -> Unit,
+    extraItems: @Composable () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val buttonState = rememberRefreshButtonState(refreshState)
@@ -203,6 +204,8 @@ fun FeedList(
                 )
             }
         }
+
+        extraItems()
 
         Spacer(Modifier.height(8.dp))
 
