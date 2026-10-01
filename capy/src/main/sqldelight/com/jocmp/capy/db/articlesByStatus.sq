@@ -1,3 +1,5 @@
+-- This fork (STIRI.md): when publishedSince is set (Today, see ByToday), only the news digest's feeds count,
+-- unless the account has none of them.
 allNewestFirst:
 SELECT
   articles.id,
@@ -22,6 +24,7 @@ WHERE ((article_statuses.read = :read AND article_statuses.last_read_at IS NULL 
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND ((article_statuses.starred = :starred AND article_statuses.last_unstarred_at IS NULL OR article_statuses.last_unstarred_at >= :lastUnstarredAt) OR :starred IS NULL)
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%')
 ORDER BY articles.published_at DESC, articles.id DESC
 LIMIT :limit OFFSET :offset;
@@ -50,6 +53,7 @@ WHERE ((article_statuses.read = :read AND article_statuses.last_read_at IS NULL 
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND ((article_statuses.starred = :starred AND article_statuses.last_unstarred_at IS NULL OR article_statuses.last_unstarred_at >= :lastUnstarredAt) OR :starred IS NULL)
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%')
 ORDER BY articles.published_at ASC, articles.id ASC
 LIMIT :limit OFFSET :offset;
@@ -63,6 +67,7 @@ WHERE ((article_statuses.read = :read AND article_statuses.last_read_at IS NULL 
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND ((article_statuses.starred = :starred AND article_statuses.last_unstarred_at IS NULL OR article_statuses.last_unstarred_at >= :lastUnstarredAt) OR :starred IS NULL)
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%');
 
 findArticleIDs:
@@ -76,6 +81,7 @@ WHERE article_statuses.read = 0
 AND (article_statuses.starred = :starred OR :starred IS NULL)
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%')
 AND (
     :afterArticleID IS NULL
@@ -107,6 +113,7 @@ WHERE ((article_statuses.read = :read AND article_statuses.last_read_at IS NULL 
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND ((article_statuses.starred = :starred AND article_statuses.last_unstarred_at IS NULL OR article_statuses.last_unstarred_at >= :lastUnstarredAt) OR :starred IS NULL)
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%')
 AND (articles.published_at < anchor.published_at OR (articles.published_at = anchor.published_at AND articles.id < anchor.id))
 ORDER BY articles.published_at DESC, articles.id DESC
@@ -122,6 +129,7 @@ WHERE ((article_statuses.read = :read AND article_statuses.last_read_at IS NULL 
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND ((article_statuses.starred = :starred AND article_statuses.last_unstarred_at IS NULL OR article_statuses.last_unstarred_at >= :lastUnstarredAt) OR :starred IS NULL)
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%')
 AND (articles.published_at > anchor.published_at OR (articles.published_at = anchor.published_at AND articles.id > anchor.id))
 ORDER BY articles.published_at ASC, articles.id ASC
@@ -137,6 +145,7 @@ WHERE ((article_statuses.read = :read AND article_statuses.last_read_at IS NULL 
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND ((article_statuses.starred = :starred AND article_statuses.last_unstarred_at IS NULL OR article_statuses.last_unstarred_at >= :lastUnstarredAt) OR :starred IS NULL)
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%')
 AND (articles.published_at > anchor.published_at OR (articles.published_at = anchor.published_at AND articles.id > anchor.id))
 ORDER BY articles.published_at ASC, articles.id ASC
@@ -152,6 +161,7 @@ WHERE ((article_statuses.read = :read AND article_statuses.last_read_at IS NULL 
 AND (feeds.priority IS NULL OR feeds.priority IN ('main', 'important'))
 AND ((article_statuses.starred = :starred AND article_statuses.last_unstarred_at IS NULL OR article_statuses.last_unstarred_at >= :lastUnstarredAt) OR :starred IS NULL)
 AND (articles.published_at >= :publishedSince OR :publishedSince IS NULL)
+AND (:publishedSince IS NULL OR feeds.feed_url LIKE 'https://news.iupif.org/sectiuni/%' OR NOT EXISTS (SELECT 1 FROM feeds AS digest WHERE digest.feed_url LIKE 'https://news.iupif.org/sectiuni/%'))
 AND (:query IS NULL OR articles.title LIKE '%' || :query || '%' OR articles.summary LIKE '%' || :query || '%')
 AND (articles.published_at < anchor.published_at OR (articles.published_at = anchor.published_at AND articles.id < anchor.id))
 ORDER BY articles.published_at DESC, articles.id DESC
