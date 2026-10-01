@@ -2,6 +2,9 @@ package com.capyreader.app.ui.explica.highlights
 
 import android.view.ActionMode
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.contextmenu.data.TextContextMenuData
+import androidx.compose.foundation.text.contextmenu.data.TextContextMenuItem
+import androidx.compose.foundation.text.contextmenu.data.TextContextMenuSeparator
 import androidx.compose.foundation.text.selection.SelectionState
 import androidx.compose.foundation.text.selection.rememberSelectionState
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +36,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
@@ -166,14 +170,31 @@ class HighlightSelectionTest {
     }
 
     @Test
-    fun theSelectionToolbar_offersHighlightAfterCopyAndSelectAll() {
+    fun theSelectionToolbar_offersHighlightFirst_thenCopyAndSelectAll() {
         show(councilHtml)
 
         val toolbar = selectAndWaitForTheToolbar(rangeOf(council, "met on Tuesday"))
 
-        assertEquals(listOf("Copy", "Select all", "Highlight"), screen.toolbarTitles(toolbar))
+        // Ion, 2026-10-01: after Copy, Select all and the apps that process text, Highlight was two scrolls away.
+        assertEquals(listOf("Highlight", "Copy", "Select all"), screen.toolbarTitles(toolbar))
 
         selection.clear()
+    }
+
+    @Test
+    fun highlightFirst_movesOnlyTheHighlightItem_andLeavesADataWithoutItAlone() {
+        val copy = TextContextMenuItem(key = "copy", label = "Copy") {}
+        val translate = TextContextMenuItem(key = "translate", label = "Translate") {}
+        val highlight = TextContextMenuItem(key = HIGHLIGHT_MENU_KEY, label = "Highlight") {}
+        val data = TextContextMenuData(listOf(copy, TextContextMenuSeparator, translate, highlight))
+
+        assertEquals(listOf(highlight, copy, TextContextMenuSeparator, translate), highlightFirst(data).components)
+
+        val without = TextContextMenuData(listOf(copy, translate))
+        assertSame(without, highlightFirst(without))
+
+        val alreadyFirst = TextContextMenuData(listOf(highlight, copy))
+        assertSame(alreadyFirst, highlightFirst(alreadyFirst))
     }
 
     @Test

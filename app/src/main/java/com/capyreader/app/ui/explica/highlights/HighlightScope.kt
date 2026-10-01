@@ -1,7 +1,12 @@
 package com.capyreader.app.ui.explica.highlights
 
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.text.contextmenu.builder.item
+import androidx.compose.foundation.text.contextmenu.data.TextContextMenuData
 import androidx.compose.foundation.text.contextmenu.modifier.appendTextContextMenuComponents
+import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuToolbarProvider
+import androidx.compose.foundation.text.contextmenu.provider.TextContextMenuDataProvider
+import androidx.compose.foundation.text.contextmenu.provider.TextContextMenuProvider
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.SelectionState
 import androidx.compose.foundation.text.selection.rememberSelectionState
@@ -9,6 +14,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
@@ -18,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.capyreader.app.R
@@ -219,12 +226,12 @@ private fun TappedHighlightActions(
 }
 
 /** The key of the Highlight item in the selection toolbar. */
-private const val HIGHLIGHT_MENU_KEY = "capy-news-highlight"
+internal const val HIGHLIGHT_MENU_KEY = "capy-news-highlight"
 
 /**
- * The selection container of a block of text. Inside a [HighlightScope] the selection toolbar gets a Highlight item
- * next to Copy; anywhere else this is the plain [SelectionContainer] it replaces. A test can hand in the
- * [state] to select text without a finger.
+ * The selection container of a block of text. Inside a [HighlightScope] the selection toolbar gets a Highlight item,
+ * first in the toolbar (see [HighlightFirstToolbar]); anywhere else this is the plain [SelectionContainer] it replaces.
+ * A test can hand in the [state] to select text without a finger.
  */
 @Composable
 fun HighlightSelection(
@@ -252,8 +259,75 @@ fun HighlightSelection(
             }
         }
     }
+    val outer = LocalTextContextMenuToolbarProvider.current
+    val toolbar = remember { HighlightFirstToolbar() }
 
-    SelectionContainer(state = selection, modifier = toolbarItem, content = content)
+    CompositionLocalProvider(LocalTextContextMenuToolbarProvider provides toolbar) {
+        SelectionContainer(state = selection, modifier = toolbarItem) {
+            // Out of sight and out of reach of a finger: it only hands over the platform's toolbar.
+            CompositionLocalProvider(LocalTextContextMenuToolbarProvider provides outer) {
+                PlatformToolbarProbe(onProvider = { toolbar.platform = it })
+            }
+            content()
+        }
+    }
+}
+
+/**
+ * The selection toolbar with Highlight first. Compose collects the toolbar's items from the modifiers up the tree,
+ * nearest first, so the item added around a [SelectionContainer] always comes after Copy, Select all and the apps that
+ * process text (Translate, Search…): on Ion's phone it was the seventh, two scrolls away (2026-10-01). This provider
+ * hands the [platform] toolbar the same items, with Highlight moved to the front; the platform draws them as always.
+ */
+internal class HighlightFirstToolbar : TextContextMenuProvider {
+    var platform: TextContextMenuProvider? = null
+
+    override suspend fun showTextContextMenu(dataProvider: TextContextMenuDataProvider) {
+        val delegate = platform ?: return
+
+        delegate.showTextContextMenu(HighlightFirstData(dataProvider))
+    }
+}
+
+private class HighlightFirstData(private val original: TextContextMenuDataProvider) : TextContextMenuDataProvider by original {
+    private var lastIn: TextContextMenuData? = null
+    private var lastOut: TextContextMenuData? = null
+
+    /** The same object for the same items: the platform rebuilds the menu only when the data is a new one. */
+    override fun data(): TextContextMenuData {
+        val data = original.data()
+
+        if (data !== lastIn) {
+            lastIn = data
+            lastOut = highlightFirst(data)
+        }
+
+        return lastOut ?: data
+    }
+}
+
+/** [data] with the Highlight item first and everything else in its order; [data] itself when there is no Highlight. */
+internal fun highlightFirst(data: TextContextMenuData): TextContextMenuData {
+    val ours = data.components.filter { it.key == HIGHLIGHT_MENU_KEY }
+
+    if (ours.isEmpty() || data.components.first().key == HIGHLIGHT_MENU_KEY) {
+        return data
+    }
+
+    return TextContextMenuData(ours + data.components.filter { it.key != HIGHLIGHT_MENU_KEY })
+}
+
+/**
+ * Reads the toolbar provider of the platform. Its own empty [SelectionContainer] sets up the default one (which it does
+ * only where none is provided), and nothing in it can be touched: it has no size.
+ */
+@Composable
+private fun PlatformToolbarProbe(onProvider: (TextContextMenuProvider?) -> Unit) {
+    SelectionContainer(modifier = Modifier.requiredSize(0.dp)) {
+        val provider = LocalTextContextMenuToolbarProvider.current
+
+        SideEffect { onProvider(provider) }
+    }
 }
 
 /** Tells the reader when a change was refused and undone, once for each failure. */
