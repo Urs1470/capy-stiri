@@ -44,6 +44,7 @@ import com.capyreader.app.ui.navigationTitle
 import com.capyreader.app.ui.savedSearchNavTitle
 import com.capyreader.app.ui.theme.CapyTheme
 import com.jocmp.capy.ArticleFilter
+import com.jocmp.capy.ArticleStatus
 import com.jocmp.capy.Feed
 import com.jocmp.capy.Folder
 import com.jocmp.capy.SavedSearch
@@ -71,6 +72,8 @@ fun FeedList(
     onBeforeFeedAdd: () -> Unit = {},
     onNavigateToSettings: () -> Unit,
     extraItems: @Composable () -> Unit = {},
+    articlesStatus: ArticleStatus = filter.status,
+    articlesSelected: Boolean = filter.hasArticlesSelected(),
 ) {
     val scrollState = rememberScrollState()
     val buttonState = rememberRefreshButtonState(refreshState)
@@ -119,14 +122,14 @@ fun FeedList(
             val (showArticlesMenu, setShowArticlesMenu) = remember { mutableStateOf(false) }
 
             DrawerItem(
-                icon = { ArticleStatusIcon(status = filter.status) },
+                icon = { ArticleStatusIcon(status = articlesStatus) },
                 label = {
                     ListTitle(
-                        stringResource(filter.status.navigationTitle),
+                        stringResource(articlesStatus.navigationTitle),
                     )
                 },
                 badge = { CountBadge(count = statusCount) },
-                selected = filter.hasArticlesSelected(),
+                selected = articlesSelected,
                 onClick = { onFilterSelect() },
                 onLongClick = { setShowArticlesMenu(true) },
             )
@@ -170,6 +173,8 @@ fun FeedList(
             )
         }
 
+        extraItems()
+
         if (readLaterFeed != null) {
             Box {
                 val (showReadLaterMenu, setShowReadLaterMenu) = remember { mutableStateOf(false) }
@@ -207,8 +212,6 @@ fun FeedList(
                 )
             }
         }
-
-        extraItems()
 
         Spacer(Modifier.height(8.dp))
 

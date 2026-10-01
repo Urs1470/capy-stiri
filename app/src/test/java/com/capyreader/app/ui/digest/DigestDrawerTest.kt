@@ -120,6 +120,7 @@ class DigestDrawerTest {
                     onMarkAllRead = {},
                     onFeedAdded = {},
                     onNavigateToSettings = {},
+                    extraItems = { StarredDrawerItem(selected = false, count = 0) { selected += "starred" } },
                 )
             }
         }
@@ -138,6 +139,7 @@ class DigestDrawerTest {
         val shown = texts()
         assertTrue(shown.toString(), "Daily digest" in shown && "Reading" in shown)
         assertFalse(shown.toString(), "Folders" in shown)
+        assertTrue(shown.toString(), shown.indexOf("Today") < shown.indexOf("Starred") && shown.indexOf("Starred") < shown.indexOf("Daily digest"))
         assertTrue(shown.indexOf("Daily digest") < shown.indexOf("Conceptul zilei"))
         assertTrue(shown.indexOf("Bursă") < shown.indexOf("Reading"))
         assertTrue(shown.indexOf("Reading") < shown.indexOf("Tech"))

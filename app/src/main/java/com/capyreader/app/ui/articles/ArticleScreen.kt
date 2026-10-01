@@ -56,6 +56,7 @@ import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.preferences.ArticleListVerticalSwipe
 import com.capyreader.app.ui.LocalAppDrawer
 import com.capyreader.app.ui.explica.highlights.HighlightsDrawerItem
+import com.capyreader.app.ui.digest.StarredDrawerItem
 import com.capyreader.app.ui.LocalConnectivity
 import com.capyreader.app.ui.LocalLinkOpener
 import com.capyreader.app.ui.LocalTimeFormats
@@ -385,7 +386,7 @@ fun ArticleScreen(
         }
 
         val selectFilter = {
-            if (!filter.hasArticlesSelected()) {
+            if (!filter.hasArticlesSelected() || viewModel.isStarredView) {
                 openNextList { viewModel.selectArticleFilter() }
             } else {
                 closeDrawer()
@@ -460,15 +461,24 @@ fun ArticleScreen(
                         refreshAll()
                     },
                     filter = filter,
-                    statusCount = statusCount,
+                    statusCount = if (viewModel.isStarredView) 0 else statusCount,
                     todayCount = todayCount,
-                    // This fork: the Highlights page, under Today.
+                    // This fork: Starred and the Highlights page, under Today.
                     extraItems = {
+                        StarredDrawerItem(selected = viewModel.isStarredView, count = statusCount) {
+                            if (!viewModel.isStarredView) {
+                                openNextList { viewModel.selectStarred() }
+                            } else {
+                                closeDrawer()
+                            }
+                        }
                         HighlightsDrawerItem(source = viewModel.source) {
                             onNavigateToHighlights()
                             coroutineScope.launchUI { drawerState.close() }
                         }
                     },
+                    articlesStatus = viewModel.listStatus,
+                    articlesSelected = filter.hasArticlesSelected() && !viewModel.isStarredView,
                 )
             }
         }

@@ -792,7 +792,27 @@ class ArticleScreenViewModel(
 
     private val latestFilter: ArticleFilter get() = filter.value
     private val currentStatus: ArticleStatus
-        get() = latestFilter.status
+        get() = listStatus
+
+    // This fork (Ion, 2026-10-01: "where are the starred articles?"): Starred in the drawer, under Today, is All articles
+    // with the Starred status. A list picked after it takes the status the reader had before it, so a folder doesn't
+    // turn into only its starred articles; inside any list the status bar works as upstream.
+    private var statusOutsideStarred: ArticleStatus? = null
+
+    /** The drawer's Starred is showing (All articles, Starred). */
+    val isStarredView: Boolean
+        get() = latestFilter.let { it is ArticleFilter.Articles && it.status == ArticleStatus.STARRED }
+
+    /** The status of the lists outside Starred: the one before Starred while it shows (All when unknown), else the current. */
+    val listStatus: ArticleStatus
+        get() = if (isStarredView) statusOutsideStarred ?: ArticleStatus.ALL else latestFilter.status
+
+    fun selectStarred() {
+        if (!isStarredView) {
+            statusOutsideStarred = latestFilter.status.takeIf { it != ArticleStatus.STARRED }
+        }
+        updateFilter(ArticleFilter.Articles(articleStatus = ArticleStatus.STARRED))
+    }
 
     private val context: Context
         get() = application.applicationContext

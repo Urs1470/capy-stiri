@@ -113,7 +113,10 @@ With the digest in the account, the folders come in two groups (Ion, 2026-10-01:
 **Daily digest**, the digest's sections, each a plain row with its own icon (a section is one folder with one feed of the
 same name, so the arrow that opened a copy of it is gone), and **Reading**, the other folders, shown without the leading
 number that orders them ("3 - Educație, istorie, știință" is shown as "Educație, istorie, știință" and stays third). Each
-group folds from its title, like Folders. An account without the digest keeps the usual Folders group. Code:
+group folds from its title, like Folders. Under Today there are **Starred** (Ion, 2026-10-01: the starred articles of every
+feed, without the status bar; it is All articles with the Starred status, and a list picked after it takes the status
+the reader had before it, so a folder doesn't turn into only its starred) and **Highlights**. Code:
+`ui/digest/StarredDrawerItem.kt`, `selectStarred`, `listStatus` and `isStarredView` in `ArticleScreenViewModel`. An account without the digest keeps the usual Folders group. Code:
 `ui/digest/DigestDrawer.kt`; contact points: `FeedList.kt` (the folders block), `FolderRow.kt` (a `label`),
 `FeedGroup.kt` (`DIGEST`, `READING`).
 
