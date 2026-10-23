@@ -14,18 +14,23 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import com.capyreader.app.ui.explica.Highlight
 import com.capyreader.app.ui.explica.HighlightColor
 import com.jocmp.mallet.LinearText
 import java.util.IdentityHashMap
 
-/** One highlight on one paragraph, ready to draw: the characters from [start] until [end] get the background of [color]. */
+/**
+ * One highlight on one paragraph, ready to draw: the characters from [start] until [end] get the background of [color],
+ * and an underline when the highlight has a note ([hasNote]), so the reader sees there is one to tap.
+ */
 @Immutable
 data class HighlightSpan(
     val highlightId: String,
     val start: Int,
     val end: Int,
     val color: HighlightColor,
+    val hasNote: Boolean = false,
 )
 
 /**
@@ -50,7 +55,10 @@ class ParagraphHighlights internal constructor(
 
                 if (start < end) {
                     addStyle(
-                        style = SpanStyle(background = Color(HighlightPalette.argb(span.color, dark))),
+                        style = SpanStyle(
+                            background = Color(HighlightPalette.argb(span.color, dark)),
+                            textDecoration = if (span.hasNote) TextDecoration.Underline else null,
+                        ),
                         start = start,
                         end = end,
                     )
@@ -100,6 +108,7 @@ class HighlightSpans private constructor(
             onTap: (highlightId: String) -> Unit,
         ): HighlightSpans {
             val colors = highlights.associate { it.id to it.highlightColor }
+            val withNote = highlights.filter { it.hasNote }.map { it.id }.toSet()
             val placements = HighlightAnchoring.place(paragraphs.map { it.text }, highlights)
             val byParagraph = IdentityHashMap<LinearText, ParagraphHighlights>()
 
@@ -112,6 +121,7 @@ class HighlightSpans private constructor(
                             start = placement.start,
                             end = placement.end,
                             color = colors.getValue(placement.highlightId),
+                            hasNote = placement.highlightId in withNote,
                         )
                     }
 

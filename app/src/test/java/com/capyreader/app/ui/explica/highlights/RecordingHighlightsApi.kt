@@ -53,4 +53,26 @@ internal class RecordingHighlightsApi(saved: List<Highlight> = emptyList()) : Hi
 
         return ExplicaResult.Success(Unit)
     }
+
+    override suspend fun updateHighlight(
+        entryId: Long,
+        id: String,
+        color: HighlightColor?,
+        note: String?,
+    ): ExplicaResult<Highlight> {
+        calls += "update:$id:${color?.wire}:$note"
+
+        val index = server.indexOfFirst { it.id == id }
+
+        if (index < 0) {
+            return ExplicaResult.Failure(FailureKind.NOT_FOUND)
+        }
+
+        var changed = server[index]
+        if (color != null) changed = changed.withColor(color)
+        if (note != null) changed = changed.copy(note = note)
+        server[index] = changed
+
+        return ExplicaResult.Success(changed)
+    }
 }

@@ -67,6 +67,8 @@ class HighlightsHost internal constructor(
 
     fun recolor(id: String, color: HighlightColor) = viewModel.recolor(id, color)
 
+    fun setNote(id: String, note: String) = viewModel.setNote(id, note)
+
     fun selectionTooLong() = viewModel.selectionTooLong()
 
     fun refresh() = viewModel.refresh()
@@ -205,6 +207,20 @@ private fun TappedHighlightActions(
     onDismiss: () -> Unit,
 ) {
     val copy = rememberCopyText()
+    val copied = highlightCopyText(highlight)
+    var editingNote by remember(highlight.id) { mutableStateOf(false) }
+
+    if (editingNote) {
+        HighlightNoteDialog(
+            highlight = highlight,
+            onSave = { note ->
+                host.setNote(highlight.id, note)
+                onDismiss()
+            },
+            onDismiss = onDismiss,
+        )
+        return
+    }
 
     HighlightActionsSheet(
         highlight = highlight,
@@ -213,8 +229,9 @@ private fun TappedHighlightActions(
             host.recolor(highlight.id, color)
             onDismiss()
         },
+        onEditNote = { editingNote = true },
         onCopy = {
-            copy(highlight.text)
+            copy(copied)
             onDismiss()
         },
         onRemove = {
@@ -353,6 +370,7 @@ private fun highlightFailureText(failure: HighlightFailure): String {
         HighlightAction.ADD -> R.string.highlights_error_add
         HighlightAction.REMOVE -> R.string.highlights_error_remove
         HighlightAction.RECOLOR -> R.string.highlights_error_recolor
+        HighlightAction.NOTE -> R.string.highlights_error_note
         HighlightAction.SELECTION_TOO_LONG -> return stringResource(R.string.highlights_error_too_long)
     }
     val cause = when (failure.kind) {

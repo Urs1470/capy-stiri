@@ -22,25 +22,36 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Highlight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -86,6 +97,96 @@ internal fun whereLabel(where: String): String {
         answer != null -> stringResource(R.string.highlights_where_answer, answer + 1)
         else -> where
     }
+}
+
+/** What Copy puts on the clipboard: the passage, and its note under it when it has one. */
+@Composable
+internal fun highlightCopyText(highlight: Highlight): String {
+    return if (highlight.hasNote) {
+        stringResource(R.string.highlights_note_copied, highlight.text, highlight.note)
+    } else {
+        highlight.text
+    }
+}
+
+/** The note of a highlight under its passage, in the lists; nothing when it has none. */
+@Composable
+internal fun HighlightNoteText(highlight: Highlight, maxLines: Int = 4) {
+    if (!highlight.hasNote) {
+        return
+    }
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(top = 4.dp),
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.Notes,
+            contentDescription = stringResource(R.string.highlights_note),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .size(16.dp)
+                .padding(top = 2.dp),
+        )
+        Text(
+            text = highlight.note,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * The popup where the note of a highlight is written or changed (up to [Highlight.MAX_NOTE] characters). Save hands
+ * over the text as it is; the view model trims it, and an empty note removes the one there was.
+ */
+@Composable
+internal fun HighlightNoteDialog(
+    highlight: Highlight,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable(highlight.id) { mutableStateOf(highlight.note) }
+    val focus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) { focus.requestFocus() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(if (highlight.hasNote) R.string.highlights_edit_note else R.string.highlights_add_note)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = highlight.text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(Highlight.MAX_NOTE) },
+                    placeholder = { Text(stringResource(R.string.highlights_note_hint)) },
+                    supportingText = {
+                        Text(stringResource(R.string.highlights_note_count, text.length, Highlight.MAX_NOTE))
+                    },
+                    minLines = 3,
+                    maxLines = 8,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focus),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.highlights_note_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.highlights_note_cancel)) }
+        },
+    )
 }
 
 /** Puts a text on the clipboard, for a highlight copied from its sheet or from the list. */
@@ -173,8 +274,8 @@ internal fun HighlightColorSheet(
 }
 
 /**
- * What can be done to a highlight that was tapped: change its color, copy it, remove it. While the server has
- * not confirmed it ([pending]) it can only be copied.
+ * What can be done to a highlight that was tapped: change its color, write its note (a popup), copy it, remove it.
+ * While the server has not confirmed it ([pending]) it can only be copied.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,6 +283,7 @@ internal fun HighlightActionsSheet(
     highlight: Highlight,
     pending: Boolean,
     onRecolor: (HighlightColor) -> Unit,
+    onEditNote: () -> Unit,
     onCopy: () -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
@@ -210,6 +312,8 @@ internal fun HighlightActionsSheet(
                 )
             }
 
+            HighlightNoteText(highlight, maxLines = 6)
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -237,6 +341,15 @@ internal fun HighlightActionsSheet(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onEditNote, enabled = !pending) {
+                    Icon(
+                        imageVector = Icons.Outlined.EditNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(if (highlight.hasNote) R.string.highlights_edit_note else R.string.highlights_note))
+                }
                 TextButton(onClick = onCopy) {
                     Icon(
                         imageVector = Icons.Outlined.ContentCopy,
@@ -326,8 +439,10 @@ fun HighlightsListSheet(
                                 maxLines = 5,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                            HighlightNoteText(highlight)
                         }
-                        IconButton(onClick = { copy(highlight.text) }) {
+                        val copied = highlightCopyText(highlight)
+                        IconButton(onClick = { copy(copied) }) {
                             Icon(
                                 imageVector = Icons.Outlined.ContentCopy,
                                 contentDescription = stringResource(R.string.highlights_copy),

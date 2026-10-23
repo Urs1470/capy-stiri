@@ -39,6 +39,7 @@ class HighlightsViewModelTest {
         val listResults = ArrayDeque<ExplicaResult<List<Highlight>>>()
         val addResults = ArrayDeque<ExplicaResult<Highlight>>()
         val removeResults = ArrayDeque<ExplicaResult<Unit>>()
+        val updateResults = ArrayDeque<ExplicaResult<Highlight>>()
 
         /** Each call takes the first gate there is and waits for it to open, so a test can hold a call in flight. */
         val gates = ArrayDeque<CompletableDeferred<Unit>>()
@@ -95,6 +96,30 @@ class HighlightsViewModelTest {
             } else {
                 ExplicaResult.Failure(FailureKind.NOT_FOUND)
             }
+        }
+
+        override suspend fun updateHighlight(
+            entryId: Long,
+            id: String,
+            color: HighlightColor?,
+            note: String?,
+        ): ExplicaResult<Highlight> {
+            log += "update:$id:${color?.wire}:$note"
+            gates.removeFirstOrNull()?.await()
+            updateResults.removeFirstOrNull()?.let { return it }
+
+            val index = server.indexOfFirst { it.id == id }
+
+            if (index < 0) {
+                return ExplicaResult.Failure(FailureKind.NOT_FOUND)
+            }
+
+            var changed = server[index]
+            if (color != null) changed = changed.withColor(color)
+            if (note != null) changed = changed.copy(note = note.trim())
+            server[index] = changed
+
+            return ExplicaResult.Success(changed)
         }
     }
 
@@ -213,7 +238,7 @@ class HighlightsViewModelTest {
         vm.add("a passage", HighlightColor.PINK, "story")
         advanceUntilIdle()
 
-        assertEquals(listOf("list", "add:a passage:yellow", "remove:n1", "add:a passage:pink"), api.log)
+        assertEquals(listOf("list", "add:a passage:yellow", "update:n1:pink:null"), api.log)
         assertEquals(listOf("pink"), vm.state.value.items.map { it.color })
 
         // The same words in another place are another highlight.
@@ -313,8 +338,8 @@ class HighlightsViewModelTest {
     }
 
     @Test
-    fun recolor_changesTheColorAtOnce_thenRemovesAndAddsTheHighlightOnTheServer() = runTest(dispatcher) {
-        val api = FakeApi().withServer(highlight("s1", "one", color = "yellow"))
+    fun recolor_changesTheColorAtOnce_thenInPlaceOnTheServer_keepingTheIdAndTheNote() = runTest(dispatcher) {
+        val api = FakeApi().withServer(highlight("s1", "one", color = "yellow").copy(note = "a note"))
         val vm = viewModel(api)
         advanceUntilIdle()
         val gate = CompletableDeferred<Unit>()
@@ -328,10 +353,11 @@ class HighlightsViewModelTest {
         gate.complete(Unit)
         advanceUntilIdle()
 
-        assertEquals(listOf("list", "remove:s1", "add:one:blue"), api.log)
+        assertEquals(listOf("list", "update:s1:blue:null"), api.log)
         val item = vm.state.value.items.single()
-        assertEquals("n1", item.id)
+        assertEquals("s1", item.id)
         assertEquals("blue", item.color)
+        assertEquals("a note", item.note)
         assertTrue(vm.state.value.pendingIds.isEmpty())
         assertNull(vm.state.value.failure)
     }
@@ -349,17 +375,17 @@ class HighlightsViewModelTest {
     }
 
     @Test
-    fun recolor_whenTheRemovalFails_putsTheOldColorBack() = runTest(dispatcher) {
+    fun recolor_whenTheServerRefuses_putsTheOldColorBack() = runTest(dispatcher) {
         val api = FakeApi()
             .withServer(highlight("s1", "one", color = "yellow"))
-            .apply { removeResults += ExplicaResult.Failure(FailureKind.NETWORK) }
+            .apply { updateResults += ExplicaResult.Failure(FailureKind.NETWORK) }
         val vm = viewModel(api)
         advanceUntilIdle()
 
         vm.recolor("s1", HighlightColor.PINK)
         advanceUntilIdle()
 
-        assertEquals(listOf("list", "remove:s1"), api.log)
+        assertEquals(listOf("list", "update:s1:pink:null"), api.log)
         val item = vm.state.value.items.single()
         assertEquals("s1", item.id)
         assertEquals("yellow", item.color)
@@ -369,41 +395,97 @@ class HighlightsViewModelTest {
     }
 
     @Test
-    fun recolor_whenTheNewHighlightIsRefused_addsTheOldColorBack() = runTest(dispatcher) {
-        val api = FakeApi()
-            .withServer(highlight("s1", "one", color = "yellow"))
-            .apply { addResults += ExplicaResult.Failure(FailureKind.RATE_LIMITED) }
+    fun recolor_aHighlightTheServerNoLongerHas_leavesTheScreenToo() = runTest(dispatcher) {
+        val api = FakeApi().withServer(highlight("s1", "one", color = "yellow"))
         val vm = viewModel(api)
         advanceUntilIdle()
-
-        vm.recolor("s1", HighlightColor.BLUE)
-        advanceUntilIdle()
-
-        assertEquals(listOf("list", "remove:s1", "add:one:blue", "add:one:yellow"), api.log)
-        val item = vm.state.value.items.single()
-        assertEquals("yellow", item.color)
-        assertNotEquals("s1", item.id)
-        assertEquals(listOf(item.id), api.server.map { it.id })
-        assertEquals(FailureKind.RATE_LIMITED, vm.state.value.failure?.kind)
-    }
-
-    @Test
-    fun recolor_whenNothingCanBeAddedAnyMore_dropsTheHighlightLikeTheServerDid() = runTest(dispatcher) {
-        val api = FakeApi()
-            .withServer(highlight("s1", "one", color = "yellow"))
-            .apply {
-                addResults += ExplicaResult.Failure(FailureKind.NETWORK)
-                addResults += ExplicaResult.Failure(FailureKind.NETWORK)
-            }
-        val vm = viewModel(api)
-        advanceUntilIdle()
+        api.server.clear()  // removed on another device since the list was read
 
         vm.recolor("s1", HighlightColor.GREEN)
         advanceUntilIdle()
 
         assertTrue(vm.state.value.items.isEmpty())
-        assertTrue(api.server.isEmpty())
         assertEquals(HighlightAction.RECOLOR, vm.state.value.failure?.action)
+        assertEquals(FailureKind.NOT_FOUND, vm.state.value.failure?.kind)
+    }
+
+    // the note
+
+    @Test
+    fun setNote_showsTheNoteAtOnce_thenSavesIt_trimmed() = runTest(dispatcher) {
+        val api = FakeApi().withServer(highlight("s1", "one"))
+        val vm = viewModel(api)
+        advanceUntilIdle()
+        val gate = CompletableDeferred<Unit>()
+        api.gates += gate
+
+        vm.setNote("s1", "  Compare with August.  ")
+
+        assertEquals("Compare with August.", vm.state.value.items.single().note)
+        assertTrue(vm.state.value.isPending("s1"))
+        assertTrue(vm.state.value.items.single().hasNote)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf("list", "update:s1:null:Compare with August."), api.log)
+        assertEquals("Compare with August.", api.server.single().note)
+        assertTrue(vm.state.value.pendingIds.isEmpty())
+        assertNull(vm.state.value.failure)
+    }
+
+    @Test
+    fun setNote_empty_removesTheNote_andTheSameNoteSendsNothing() = runTest(dispatcher) {
+        val api = FakeApi().withServer(highlight("s1", "one").copy(note = "old"))
+        val vm = viewModel(api)
+        advanceUntilIdle()
+
+        vm.setNote("s1", "old")
+        vm.setNote("s1", " old ")
+        advanceUntilIdle()
+        assertEquals(listOf("list"), api.log)
+
+        vm.setNote("s1", "   ")
+        advanceUntilIdle()
+
+        assertEquals(listOf("list", "update:s1:null:"), api.log)
+        assertEquals("", vm.state.value.items.single().note)
+        assertFalse(vm.state.value.items.single().hasNote)
+    }
+
+    @Test
+    fun setNote_whenTheServerRefuses_putsTheOldNoteBack() = runTest(dispatcher) {
+        val api = FakeApi()
+            .withServer(highlight("s1", "one").copy(note = "old"))
+            .apply { updateResults += ExplicaResult.Failure(FailureKind.RATE_LIMITED) }
+        val vm = viewModel(api)
+        advanceUntilIdle()
+
+        vm.setNote("s1", "new")
+        advanceUntilIdle()
+
+        assertEquals("old", vm.state.value.items.single().note)
+        assertEquals(HighlightAction.NOTE, vm.state.value.failure?.action)
+        assertEquals(FailureKind.RATE_LIMITED, vm.state.value.failure?.kind)
+    }
+
+    @Test
+    fun setNote_isCutAtTheLengthTheServerTakes_andWaitsForAHighlightNotSavedYet() = runTest(dispatcher) {
+        val api = FakeApi().withServer(highlight("s1", "one"))
+        val vm = viewModel(api)
+        advanceUntilIdle()
+        val gate = CompletableDeferred<Unit>()
+        api.gates += gate
+
+        vm.add("a passage", HighlightColor.BLUE, "story")
+        val localId = vm.state.value.items.last().id
+        vm.setNote(localId, "too early")
+        vm.setNote("s1", "x".repeat(Highlight.MAX_NOTE + 50))
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(Highlight.MAX_NOTE, api.server.first { it.id == "s1" }.note.length)
+        assertTrue(api.log.none { it.startsWith("update:$localId") })
     }
 
     @Test

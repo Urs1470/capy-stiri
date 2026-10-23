@@ -41,7 +41,10 @@ object HighlightWhere {
     }
 }
 
-/** One highlight, as `api/highlights` sends it; [created] is in unix seconds. */
+/**
+ * One highlight, as `api/highlights` sends it; [created] is in unix seconds. [note] is the reader's comment on it, plain
+ * text of up to [MAX_NOTE] characters, empty when there is none (a server before 2026-10-23 doesn't send the key).
+ */
 @Serializable
 data class Highlight(
     val id: String,
@@ -51,11 +54,20 @@ data class Highlight(
     val prefix: String = "",
     val suffix: String = "",
     val created: Long = 0,
+    val note: String = "",
 ) {
     val highlightColor: HighlightColor
         get() = HighlightColor.fromWire(color)
 
+    val hasNote: Boolean
+        get() = note.isNotBlank()
+
     fun withColor(newColor: HighlightColor) = copy(color = newColor.wire)
+
+    companion object {
+        /** The longest note the server takes (`highlights.MAX_NOTE`). */
+        const val MAX_NOTE = 1_000
+    }
 }
 
 /** `{"highlights": [...]}`, the answer to `op: list`. */
@@ -64,7 +76,7 @@ internal data class HighlightsResponse(
     val highlights: List<Highlight> = emptyList(),
 )
 
-/** `{"highlight": {...}}`, the answer to `op: add`. */
+/** `{"highlight": {...}}`, the answer to `op: add` and `op: update`. */
 @Serializable
 internal data class HighlightResponse(
     val highlight: Highlight? = null,

@@ -20,7 +20,9 @@ import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.style.TextDecoration
 import com.capyreader.app.ui.articles.reader.ArticleBody
 import com.capyreader.app.ui.articles.reader.LocalReaderStyle
 import com.capyreader.app.ui.articles.reader.ReaderActions
@@ -352,7 +354,8 @@ class HighlightSelectionTest {
 
         screen.assertSoon("not repainted") { backgrounds(council[0]).singleOrNull()?.third == color(HighlightColor.BLUE) }
         screen.assertSoon("still waiting") { viewModel.state.value.pendingIds.isEmpty() }
-        assertEquals(listOf("list:42", "remove:s1", "add:42:met on Tuesday:blue:explanation:|"), api.calls)
+        // In place on the server (`op: update`), so the id, the time and the note stay.
+        assertEquals(listOf("list:42", "update:s1:blue:null"), api.calls)
     }
 
     // a finger on a highlighted passage
@@ -457,7 +460,7 @@ class HighlightSelectionTest {
     fun theActionsSheet_showsThePassage_andCopyPutsItOnTheClipboard() {
         openTheActionsOfTheHighlightAtTheStart()
 
-        assertEquals(listOf("The council", "Color", "Copy", "Remove"), screen.sheetTexts())
+        assertEquals(listOf("The council", "Color", "Note", "Copy", "Remove"), screen.sheetTexts())
 
         screen.sheetClick { screen.hasText(it, "Copy") }
 
@@ -474,7 +477,43 @@ class HighlightSelectionTest {
 
         screen.assertSoon("not repainted") { backgrounds(council[0]).singleOrNull()?.third == color(HighlightColor.BLUE) }
         screen.assertSoon("still waiting") { viewModel.state.value.pendingIds.isEmpty() }
-        assertEquals(listOf("list:42", "remove:s1", "add:42:The council:blue:explanation:|"), api.calls)
+        assertEquals(listOf("list:42", "update:s1:blue:null"), api.calls)
+    }
+
+    @Test
+    fun theActionsSheet_noteOpensAPopup_whoseSaveWritesTheNote_andUnderlinesThePassage() {
+        openTheActionsOfTheHighlightAtTheStart()
+
+        screen.sheetClick { screen.hasText(it, "Note") }
+
+        screen.assertSoon("no note popup") { "Add note" in screen.sheetTexts() }
+        val field = screen.nodes(merged = true, inDialog = true).first { SemanticsActions.SetText in it.config }
+        field.config[SemanticsActions.SetText].action!!.invoke(AnnotatedString("Compare with August."))
+        screen.sheetClick { screen.hasText(it, "Save") }
+
+        screen.assertSoon("not saved") { api.server.single().note == "Compare with August." }
+        assertEquals("update:s1:null:Compare with August.", api.calls.last())
+        screen.assertSoon("not underlined") {
+            screen.drawn().single { it.text == council[0] }.spanStyles
+                .any { it.item.textDecoration == TextDecoration.Underline && it.start == 0 && it.end == 11 }
+        }
+        assertNull(scope!!.tappedId)
+    }
+
+    @Test
+    fun theActionsSheet_ofAHighlightWithANote_showsTheNote_andCopyTakesItToo() {
+        show(councilHtml, saved = listOf(savedAtTheStart.single().copy(note = "Ask who chaired it.")))
+        screen.assertSoon("not painted") { backgrounds(council[0]).isNotEmpty() }
+        screen.press(Offset(10f, 18f))
+        screen.assertSoon("no sheet") { screen.hasSheet() }
+        screen.assertSoon("no actions") { "Remove" in screen.sheetTexts() }
+
+        assertEquals(listOf("The council", "Ask who chaired it.", "Color", "Edit note", "Copy", "Remove"), screen.sheetTexts())
+
+        screen.sheetClick { screen.hasText(it, "Copy") }
+
+        screen.assertSoon("not copied") { screen.clipboardText() != null }
+        assertEquals("The council\n\nNote: Ask who chaired it.", screen.clipboardText())
     }
 
     @Test

@@ -172,6 +172,35 @@ class HighlightsClientTest {
     }
 
     @Test
+    fun update_sendsOnlyWhatChanges_andReadsTheNoteBack() = runTest {
+        val api = client {
+            it.reply(200, """{"highlight":{"id":"h1","text":"a passage","color":"blue","where":"story","created":5,"note":"why?"}}""")
+        }
+
+        val result = api.updateHighlight(entryId = 7, id = "h1", note = "why?")
+        assertEquals("""{"entry_id":7,"op":"update","id":"h1","note":"why?"}""", bodyOf(lastRequest))
+        assertEquals("why?", (result as ExplicaResult.Success).value.note)
+        assertTrue(result.value.hasNote)
+
+        api.updateHighlight(entryId = 7, id = "h1", color = HighlightColor.BLUE)
+        assertEquals("""{"entry_id":7,"op":"update","id":"h1","color":"blue"}""", bodyOf(lastRequest))
+
+        // An empty note is sent as it is: it removes the note on the server.
+        api.updateHighlight(entryId = 7, id = "h1", note = "")
+        assertEquals("""{"entry_id":7,"op":"update","id":"h1","note":""}""", bodyOf(lastRequest))
+    }
+
+    @Test
+    fun aHighlightFromAServerWithoutNotes_hasAnEmptyNote() = runTest {
+        val api = client { it.reply(200, """{"highlights":[{"id":"h1","text":"x","color":"pink"}]}""") }
+
+        val highlight = (api.listHighlights(1) as ExplicaResult.Success).value.single()
+
+        assertEquals("", highlight.note)
+        assertFalse(highlight.hasNote)
+    }
+
+    @Test
     fun remove_anAnswerThatIsNotOk_isAServerFailure() = runTest {
         val api = client { it.reply(200, """{"ok":false}""") }
 

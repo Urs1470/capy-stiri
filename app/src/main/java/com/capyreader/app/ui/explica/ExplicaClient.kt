@@ -35,8 +35,8 @@ interface ExplicaApi {
 }
 
 /**
- * The highlights of a story, kept by the same server (`POST api/highlights`; the `op` is `list`, `add` or `remove`).
- * Every call is one request: nothing is queued, so a call that fails is for the caller to undo.
+ * The highlights of a story, kept by the same server (`POST api/highlights`; the `op` is `list`, `add`, `update` or
+ * `remove`). Every call is one request: nothing is queued, so a call that fails is for the caller to undo.
  */
 interface HighlightsApi {
     /** All the highlights of the story for this reader, oldest first. */
@@ -58,6 +58,18 @@ interface HighlightsApi {
 
     /** Removes a highlight; an [id] the server doesn't know is a [FailureKind.NOT_FOUND]. */
     suspend fun removeHighlight(entryId: Long, id: String): ExplicaResult<Unit>
+
+    /**
+     * Changes the [color] and/or the [note] of a highlight in place: the same id and time (`op: update`, since
+     * 2026-10-23). An empty [note] removes the note; `null` leaves that field as it is. An [id] the server doesn't know
+     * is a [FailureKind.NOT_FOUND].
+     */
+    suspend fun updateHighlight(
+        entryId: Long,
+        id: String,
+        color: HighlightColor? = null,
+        note: String? = null,
+    ): ExplicaResult<Highlight>
 }
 
 /** Every highlight of the reader, grouped by story (`op: all`), for the Highlights page. */
@@ -166,6 +178,35 @@ class ExplicaClient(
                     ExplicaResult.Success(Unit)
                 } else {
                     ExplicaResult.Failure(FailureKind.SERVER, "the server did not confirm the removal")
+                }
+            }
+
+            is ExplicaResult.Failure -> result
+        }
+    }
+
+    override suspend fun updateHighlight(
+        entryId: Long,
+        id: String,
+        color: HighlightColor?,
+        note: String?,
+    ): ExplicaResult<Highlight> {
+        val result = post("api/highlights", HighlightResponse.serializer()) {
+            put("entry_id", entryId)
+            put("op", "update")
+            put("id", id)
+            if (color != null) put("color", color.wire)
+            if (note != null) put("note", note)
+        }
+
+        return when (result) {
+            is ExplicaResult.Success -> {
+                val highlight = result.value.highlight
+
+                if (highlight == null) {
+                    ExplicaResult.Failure(FailureKind.SERVER, "no highlight in the answer")
+                } else {
+                    ExplicaResult.Success(highlight)
                 }
             }
 

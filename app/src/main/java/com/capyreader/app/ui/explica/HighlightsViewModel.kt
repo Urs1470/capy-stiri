@@ -15,6 +15,7 @@ enum class HighlightAction {
     ADD,
     REMOVE,
     RECOLOR,
+    NOTE,
 
     /** Not a call: the selection is longer than the server takes, so nothing was sent. */
     SELECTION_TOO_LONG,
@@ -48,8 +49,8 @@ data class HighlightsState(
 
 /**
  * Backs the highlights of one story ([entryId] is the Miniflux entry id). The screen is optimistic: a highlight
- * appears, goes or changes color at once, and is put back with a [HighlightFailure] when the server doesn't take
- * the change. Nothing is kept for later: a change made without a connection is lost, and the next [refresh]
+ * appears, goes, changes color or gets its note at once, and is put back with a [HighlightFailure] when the server
+ * doesn't take the change. Nothing is kept for later: a change made without a connection is lost, and the next [refresh]
  * shows what the server has. Calls reach the server one at a time, in the order they were made.
  */
 class HighlightsViewModel(
@@ -156,35 +157,36 @@ class HighlightsViewModel(
     }
 
     /**
-     * Gives the highlight [id] another [color]. The server never changes the color of a passage it has, so this
-     * is a removal followed by a new highlight of the same passage (with a new id and time). If the new one is
-     * refused the old color is added back; if that fails too, the highlight is gone, as it is on the server.
+     * Gives the highlight [id] another [color], in place on the server too (`op: update`: same id, time and note).
+     * Until 2026-10-23 the server couldn't change a color, so this was a removal and a new highlight, which would now
+     * lose the note. The old color comes back when the server refuses; a highlight it doesn't know any more is gone.
      */
     fun recolor(id: String, color: HighlightColor) {
-        val current = _state.value
-        val index = current.items.indexOfFirst { it.id == id }
-
-        if (entryId <= 0 || index < 0 || current.isPending(id)) {
-            return
-        }
-
-        val original = current.items[index]
+        val original = changeable(id) ?: return
 
         if (original.color == color.wire) {
             return
         }
 
-        _state.update {
-            it.copy(
-                items = it.items.map { item -> if (item.id == id) item.withColor(color) else item },
-                pendingIds = it.pendingIds + id,
-            )
+        change(original, original.withColor(color), HighlightAction.RECOLOR) {
+            api.updateHighlight(entryId, id, color = color)
+        }
+    }
+
+    /**
+     * Writes the reader's [note] on the highlight [id] (trimmed; an empty one removes the note), at once on screen. The
+     * note that was there comes back when the server refuses; a highlight it doesn't know any more is gone.
+     */
+    fun setNote(id: String, note: String) {
+        val original = changeable(id) ?: return
+        val clean = note.trim().take(Highlight.MAX_NOTE)
+
+        if (clean == original.note) {
+            return
         }
 
-        viewModelScope.launch {
-            val outcome = calls.withLock { changeColor(original, color) }
-
-            _state.update { applyRecolor(it, original, outcome) }
+        change(original, original.copy(note = clean), HighlightAction.NOTE) {
+            api.updateHighlight(entryId, id, note = clean)
         }
     }
 
@@ -197,50 +199,54 @@ class HighlightsViewModel(
         _state.update { if (it.failure == failure) it.copy(failure = null) else it }
     }
 
-    private sealed interface Recolored {
-        data class Done(val highlight: Highlight) : Recolored
+    /** The highlight [id] when it can be changed now: it exists and no call about it is under way. */
+    private fun changeable(id: String): Highlight? {
+        val current = _state.value
 
-        data class Unchanged(val kind: FailureKind) : Recolored
-
-        data class Refused(val kind: FailureKind, val restored: Highlight?) : Recolored
-    }
-
-    private suspend fun changeColor(original: Highlight, color: HighlightColor): Recolored {
-        val removal = api.removeHighlight(entryId, original.id)
-
-        if (removal is ExplicaResult.Failure && removal.kind != FailureKind.NOT_FOUND) {
-            return Recolored.Unchanged(removal.kind)
+        if (entryId <= 0 || current.isPending(id)) {
+            return null
         }
 
-        return when (val added = addAgain(original, color)) {
-            is ExplicaResult.Success -> Recolored.Done(added.value)
-            is ExplicaResult.Failure -> {
-                val restored = addAgain(original, original.highlightColor)
+        return current.items.firstOrNull { it.id == id }
+    }
 
-                Recolored.Refused(added.kind, (restored as? ExplicaResult.Success)?.value)
+    /**
+     * Shows [changed] in the place of [original] at once, then sends the [call]: the server's answer replaces it, a
+     * refusal puts [original] back with a [HighlightFailure] of [action], and a highlight the server doesn't know any
+     * more ([FailureKind.NOT_FOUND]) leaves the screen, as it left the server.
+     */
+    private fun change(
+        original: Highlight,
+        changed: Highlight,
+        action: HighlightAction,
+        call: suspend () -> ExplicaResult<Highlight>,
+    ) {
+        _state.update {
+            it.copy(
+                items = it.items.map { item -> if (item.id == original.id) changed else item },
+                pendingIds = it.pendingIds + original.id,
+            )
+        }
+
+        viewModelScope.launch {
+            val result = calls.withLock { call() }
+
+            _state.update {
+                val settled = it.copy(pendingIds = it.pendingIds - original.id)
+
+                when (result) {
+                    is ExplicaResult.Success -> settled.copy(items = replace(settled.items, original.id, result.value))
+
+                    is ExplicaResult.Failure -> settled.copy(
+                        items = replace(
+                            settled.items,
+                            original.id,
+                            original.takeIf { result.kind != FailureKind.NOT_FOUND },
+                        ),
+                        failure = failed(action, result.kind),
+                    )
+                }
             }
-        }
-    }
-
-    private suspend fun addAgain(of: Highlight, color: HighlightColor): ExplicaResult<Highlight> {
-        return api.addHighlight(entryId, of.text, color, of.where, of.prefix, of.suffix)
-    }
-
-    private fun applyRecolor(state: HighlightsState, original: Highlight, outcome: Recolored): HighlightsState {
-        val settled = state.copy(pendingIds = state.pendingIds - original.id)
-
-        return when (outcome) {
-            is Recolored.Done -> settled.copy(items = replace(settled.items, original.id, outcome.highlight))
-
-            is Recolored.Unchanged -> settled.copy(
-                items = replace(settled.items, original.id, original),
-                failure = failed(HighlightAction.RECOLOR, outcome.kind),
-            )
-
-            is Recolored.Refused -> settled.copy(
-                items = replace(settled.items, original.id, outcome.restored),
-                failure = failed(HighlightAction.RECOLOR, outcome.kind),
-            )
         }
     }
 

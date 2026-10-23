@@ -20,6 +20,15 @@
     <string name="highlights_error_add">Couldn\'t save the highlight.</string>
     <string name="highlights_error_remove">Couldn\'t remove the highlight.</string>
     <string name="highlights_error_recolor">Couldn\'t change the color.</string>
+    <string name="highlights_error_note">Couldn\'t save the note.</string>
+    <string name="highlights_note">Note</string>
+    <string name="highlights_add_note">Add note</string>
+    <string name="highlights_edit_note">Edit note</string>
+    <string name="highlights_note_hint">Your note on this passage</string>
+    <string name="highlights_note_count">%1$d / %2$d</string>
+    <string name="highlights_note_save">Save</string>
+    <string name="highlights_note_cancel">Cancel</string>
+    <string name="highlights_note_copied">%1$s\n\nNote: %2$s</string>
     <string name="highlights_error_too_long">That passage is too long to highlight. Select up to 1,000 characters.</string>
     <string name="highlights_cause_network">No connection.</string>
     <string name="highlights_cause_unauthorized">Sign in again.</string>

@@ -129,6 +129,13 @@ cards). The passage gets an opaque background per theme mode (at least 7:1 again
 themes, `HighlightPaletteTest`; the wallpaper colors of Material You are not checked). A tap on it opens a sheet to change the color, copy it or remove it. An icon in the top
 bar of both screens lists the story's highlights with Copy and Remove. Other feeds and account types are untouched.
 
+A highlight can carry a note (2026-10-23; the same note shows on the web panel of ReactFlux and in the vault notes): the
+sheet of a tapped highlight has **Note** (**Edit note** when there is one), which opens a popup with a text field of up to
+1000 characters (`HighlightNoteDialog`); Save writes it, and an empty note removes it. A highlight with a note is
+underlined in the text (`HighlightSpan.hasNote`), the sheet shows the note under the passage, the list sheet and the
+Highlights page show it under each passage (`HighlightNoteText`), and Copy takes the passage and its note. Code:
+`HighlightsViewModel.setNote`, `HighlightsApi.updateHighlight`.
+
 It works on the selection itself, not on paragraphs: Compose foundation 1.13.0-alpha01 (pulled in by material3
 1.5.0-alpha29) has `SelectionContainer(state)` with `SelectionState.selectedTexts` and
 `Modifier.appendTextContextMenuComponents` for the toolbar item. The selection gives the words but not where they are,
@@ -147,6 +154,9 @@ created}` (`created` in unix seconds):
   "story"|"explanation"|"answer:<n>", "prefix"?, "suffix"?}` gives `{"highlight": H}`; the same `where` and `text`
   again gives the one that exists. `<n>` is the position of the turn in the story's `chat`, from zero.
 - `{"entry_id": n, "op": "remove", "id": "..."}` gives `{"ok": true}`; an unknown id is 404 (taken as already gone).
+- `{"entry_id": n, "op": "update", "id": "...", "color"?: ..., "note"?: "..."}` gives `{"highlight": H}`: the color and/or
+  the note change in place (same id and `created`); `"note": ""` removes the note; an unknown id is 404. `H` also has
+  `note` (empty when there is none; the app reads it leniently, so an older server without the key is fine).
 
 Limits of this first version:
 
@@ -156,8 +166,9 @@ Limits of this first version:
   drawn at every occurrence, except that whole words win over the same letters inside a longer word.
 - A passage that crosses paragraphs is stored on one line. A selection that reaches outside the story text (its
   title, say) is saved but not drawn. The explanation and an answer can't be highlighted while they are being written.
-- The server keeps the first color of a passage, so changing a color is a removal followed by a new highlight (a new
-  id and time). If the new one is refused the old color is added back; if that fails too the highlight is gone.
+- A color or a note changes in place (`op: update`), with the same id and time; the old one comes back when the server
+  refuses, and a highlight the server no longer has leaves the screen. (Until 2026-10-23 a color change was a removal
+  followed by a new highlight, which would now lose the note.)
 - Highlight is the first item of the selection toolbar. Compose collects the items up the tree, nearest first, so
   an item added around a `SelectionContainer` comes after Copy, Select all and the apps that process text (seventh
   on Ion's phone). `HighlightFirstToolbar` is the toolbar provider of the container: it hands the platform's own

@@ -8,6 +8,7 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import com.capyreader.app.ui.explica.ExplicaResult
 import com.capyreader.app.ui.explica.Highlight
 import com.capyreader.app.ui.explica.HighlightAction
@@ -157,6 +158,21 @@ class HighlightSpansTest {
     }
 
     @Test
+    fun styled_underlinesOnlyTheHighlightsThatHaveANote() {
+        val paragraph = paragraph("Alpha beta gamma")
+        val highlights = listOf(
+            highlight("h1", "Alpha").copy(note = "why?"),
+            highlight("h2", "gamma"),
+        )
+
+        val styled = resolve(listOf(paragraph), highlights).forParagraph(paragraph)!!.styled(AnnotatedString("Alpha beta gamma"))
+
+        val underlined = styled.spanStyles.filter { it.item.textDecoration == TextDecoration.Underline }
+        assertEquals(listOf(0 to 5), underlined.map { it.start to it.end })
+        assertEquals(2, styled.spanStyles.count { it.item.background != Color.Unspecified })
+    }
+
+    @Test
     fun styled_aRangeOutsideTheText_isIgnored_andNothingFails() {
         val paragraph = paragraph("Short")
         val spans = resolve(listOf(paragraph), listOf(highlight("h1", "Short")))
@@ -218,6 +234,13 @@ class HighlightSpansTest {
         ): ExplicaResult<Highlight> = error("not expected")
 
         override suspend fun removeHighlight(entryId: Long, id: String): ExplicaResult<Unit> = error("not expected")
+
+        override suspend fun updateHighlight(
+            entryId: Long,
+            id: String,
+            color: HighlightColor?,
+            note: String?,
+        ): ExplicaResult<Highlight> = error("not expected")
     }
 
     private fun scope(vararg paragraphs: String): Pair<HighlightScopeState, HighlightsViewModel> {

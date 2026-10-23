@@ -229,6 +229,7 @@ private fun StoryCard(story: StoryHighlights, onClick: () -> Unit) {
                             maxLines = 6,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        HighlightNoteText(highlight)
                     }
                 }
             }
