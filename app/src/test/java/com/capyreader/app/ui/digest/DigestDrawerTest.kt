@@ -2,6 +2,8 @@ package com.capyreader.app.ui.digest
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
+import androidx.compose.material.icons.outlined.FormatListNumbered
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Public
@@ -19,6 +21,7 @@ import com.jocmp.capy.ArticleFilter
 import com.jocmp.capy.Feed
 import com.jocmp.capy.Folder
 import com.jocmp.capy.accounts.Source
+import com.jocmp.capy.common.sortedByTitle
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -64,6 +67,26 @@ class DigestDrawerTest {
         assertEquals(listOf(tech, history), split.reading)
     }
 
+    private val audioPrefix = "https://stiri.iupif.org/explica/audio/"
+    private val audio = Folder(
+        title = "Audio",
+        feeds = listOf(Feed(id = "audio", subscriptionID = "audio", title = "Audio", feedURL = "${audioPrefix}token/feed.xml", folderName = "Audio")),
+        count = 2,
+    )
+    private val top5 = section("Top 5", "top-5", 5)
+
+    @Test
+    fun theDigestReadAloudAndTopFive_comeFirstInTheDigest_andAudioGetsNoExplain() {
+        // Ion, 2026-10-30: Audio and Top 5 on top. The account sorts the folders; the split keeps that order.
+        val sorted = listOf(moldova, tech, concept, top5, audio).sortedByTitle()
+        assertEquals(listOf(audio, top5, concept, moldova, tech), sorted)
+
+        val split = splitDigestFolders(sorted, prefix, audioPrefix)
+        assertEquals(listOf(audio, top5, concept, moldova), split.digest)
+        assertEquals(listOf(tech), split.reading)
+        assertFalse(isDigestStory(audio.feeds.single().feedURL, prefix))
+    }
+
     @Test
     fun aFolderWithAFeedFromElsewhere_orWithoutFeeds_isNotTheDigests() {
         val mixed = Folder(title = "AI", feeds = moldova.feeds + tech.feeds)
@@ -86,6 +109,8 @@ class DigestDrawerTest {
 
     @Test
     fun everySectionHasItsIcon_andAnUnknownOneTheNewspaper() {
+        assertEquals(Icons.Outlined.Headphones, sectionIcon("Audio"))
+        assertEquals(Icons.Outlined.FormatListNumbered, sectionIcon("Top 5"))
         assertEquals(Icons.Outlined.Lightbulb, sectionIcon("Conceptul zilei"))
         assertEquals(Icons.Outlined.Lightbulb, sectionIcon("00 Azi"))
         assertEquals(Icons.AutoMirrored.Outlined.ShowChart, sectionIcon("Bursă"))

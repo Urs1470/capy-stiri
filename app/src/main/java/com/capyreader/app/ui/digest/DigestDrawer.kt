@@ -6,6 +6,8 @@ import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Euro
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.FormatListNumbered
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Memory
@@ -31,13 +33,19 @@ import com.jocmp.capy.common.DigestFolderOrder
 /**
  * The drawer's folders in two groups (this fork; Ion, 2026-10-01: "there are quite a lot of them now"): the sections of
  * the daily digest, and the rest, which are the reading folders. A folder belongs to the digest when every feed in it
- * is one of the digest's (its URL starts with [feedPrefix]). The order within each group is the drawer's.
+ * is one of the digest's (its URL starts with [feedPrefix]) or the digest read aloud (it starts with [audioPrefix]). The
+ * order within each group is the drawer's.
  */
 data class DrawerFolders(val digest: List<Folder>, val reading: List<Folder>)
 
-fun splitDigestFolders(folders: List<Folder>, feedPrefix: String = BuildConfig.EXPLICA_FEED_PREFIX): DrawerFolders {
+fun splitDigestFolders(
+    folders: List<Folder>,
+    feedPrefix: String = BuildConfig.EXPLICA_FEED_PREFIX,
+    audioPrefix: String = BuildConfig.AUDIO_FEED_PREFIX,
+): DrawerFolders {
     val (digest, reading) = folders.partition { folder ->
-        folder.feeds.isNotEmpty() && folder.feeds.all { it.feedURL.startsWith(feedPrefix) }
+        folder.feeds.isNotEmpty() &&
+            folder.feeds.all { it.feedURL.startsWith(feedPrefix) || it.feedURL.startsWith(audioPrefix) }
     }
 
     return DrawerFolders(digest = digest, reading = reading)
@@ -56,14 +64,16 @@ fun readingFolderLabel(title: String): String {
 /** The icon of a section of the digest, by its place in [com.jocmp.capy.common.DIGEST_SECTION_ORDER]. */
 internal fun sectionIcon(title: String): ImageVector {
     return when (DigestFolderOrder.rank(title)) {
-        0 -> Icons.Outlined.Lightbulb
-        1 -> Icons.Outlined.Home
-        2 -> Icons.Outlined.Flag
-        3 -> Icons.Outlined.Euro
-        4 -> Icons.AutoMirrored.Outlined.ShowChart
-        5 -> Icons.Outlined.Public
-        6 -> Icons.Outlined.Memory
-        7 -> Icons.Outlined.Bolt
+        0 -> Icons.Outlined.Headphones
+        1 -> Icons.Outlined.FormatListNumbered
+        2 -> Icons.Outlined.Lightbulb
+        3 -> Icons.Outlined.Home
+        4 -> Icons.Outlined.Flag
+        5 -> Icons.Outlined.Euro
+        6 -> Icons.AutoMirrored.Outlined.ShowChart
+        7 -> Icons.Outlined.Public
+        8 -> Icons.Outlined.Memory
+        9 -> Icons.Outlined.Bolt
         else -> Icons.Outlined.Newspaper
     }
 }

@@ -77,8 +77,10 @@ the digest comes about 06:10, so yesterday's digest and anything published in th
   - Morning sync (`MorningSync*.kt`, see "Morning sync and notification" below).
   - `DigestModule.kt`: the Koin definitions, included by `explicaModule`.
 - Folder order: `DigestFolderOrder` and `DIGEST_SECTION_ORDER` (`capy/.../common/DigestFolderOrder.kt`) put the
-  sections in the digest's order ("Conceptul zilei", "Republica Moldova", "România", "Economie", "Bursă", "Geopolitică și
-  știri globale", "AI", "Tehnologie — domeniul meu") ahead of every other folder, which stay alphabetical. A title
+  sections in the digest's order ("Audio", "Top 5", "Conceptul zilei", "Republica Moldova", "România", "Economie", "Bursă",
+  "Geopolitică și știri globale", "AI", "Tehnologie — domeniul meu") ahead of every other folder, which stay alphabetical.
+  "Audio" is the digest read aloud (its feed is under `AUDIO_FEED_PREFIX`, so it sits with the digest in the drawer but
+  gets no Explain), "Top 5" the five stories of the day (both on top from 2026-10-30, Ion). A title
   matches a section by whole words, ignoring case and diacritics, so "Geopolitică" is the long name and "Aisle" is not
   "AI". `Account.folders` already sorts with `sortedByTitle()`, so the drawer, the swipe up to the next section and
   "open next feed" after mark all read follow it, as does the feed edit dialog.

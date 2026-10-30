@@ -20,8 +20,10 @@ class DigestFolderOrderTest {
     fun theSectionsComeInTheDigestsOrder_whateverTheOrderTheyArriveIn() {
         val shuffled = listOf(
             "Tehnologie — domeniul meu",
+            "Top 5",
             "Bursă",
             "AI",
+            "Audio",
             "Republica Moldova",
             "Geopolitică și știri globale",
             "Conceptul zilei",
@@ -36,6 +38,8 @@ class DigestFolderOrderTest {
     fun theOrderListIsTheDigestsOrder() {
         assertEquals(
             listOf(
+                "Audio",
+                "Top 5",
                 "Conceptul zilei",
                 "Republica Moldova",
                 "România",
@@ -67,26 +71,26 @@ class DigestFolderOrderTest {
 
     @Test
     fun aTitleMatchesIgnoringCaseAndDiacritics() {
-        assertEquals(1, DigestFolderOrder.rank("REPUBLICA MOLDOVA"))
-        assertEquals(2, DigestFolderOrder.rank("romania"))
-        assertEquals(2, DigestFolderOrder.rank("ROMÂNIA"))
-        assertEquals(4, DigestFolderOrder.rank("bursa"))
-        assertEquals(5, DigestFolderOrder.rank("GEOPOLITICA SI STIRI GLOBALE"))
-        assertEquals(7, DigestFolderOrder.rank("tehnologie - domeniul meu"))
+        assertEquals(3, DigestFolderOrder.rank("REPUBLICA MOLDOVA"))
+        assertEquals(4, DigestFolderOrder.rank("romania"))
+        assertEquals(4, DigestFolderOrder.rank("ROMÂNIA"))
+        assertEquals(6, DigestFolderOrder.rank("bursa"))
+        assertEquals(7, DigestFolderOrder.rank("GEOPOLITICA SI STIRI GLOBALE"))
+        assertEquals(9, DigestFolderOrder.rank("tehnologie - domeniul meu"))
     }
 
     @Test
     fun theCedillaFormsOfSAndTMatchToo() {
         // ş and ţ (with cedilla) are what some keyboards and feeds write instead of ș and ț.
-        assertEquals(5, DigestFolderOrder.rank("Geopolitică şi ştiri globale"))
-        assertEquals(5, DigestFolderOrder.rank("Geopolitică și știri globale"))
-        assertEquals(3, DigestFolderOrder.rank("Economie şi finanţe"))
+        assertEquals(7, DigestFolderOrder.rank("Geopolitică şi ştiri globale"))
+        assertEquals(7, DigestFolderOrder.rank("Geopolitică și știri globale"))
+        assertEquals(5, DigestFolderOrder.rank("Economie şi finanţe"))
     }
 
     @Test
     fun theShortNamesTheModelSometimesWritesMatchTheLongSections() {
-        assertEquals(5, DigestFolderOrder.rank("Geopolitică"))
-        assertEquals(7, DigestFolderOrder.rank("Tehnologie"))
+        assertEquals(7, DigestFolderOrder.rank("Geopolitică"))
+        assertEquals(9, DigestFolderOrder.rank("Tehnologie"))
 
         assertEquals(
             listOf("Economie", "Geopolitică", "AI", "Tehnologie"),
@@ -104,17 +108,17 @@ class DigestFolderOrderTest {
 
     @Test
     fun aTitleThatStartsWithASectionAndGoesOnIsThatSection() {
-        assertEquals(2, DigestFolderOrder.rank("România — local"))
-        assertEquals(3, DigestFolderOrder.rank("Economie și finanțe"))
-        assertEquals(6, DigestFolderOrder.rank("AI și robotică"))
-        assertEquals(6, DigestFolderOrder.rank("AI: știri"))
+        assertEquals(4, DigestFolderOrder.rank("România — local"))
+        assertEquals(5, DigestFolderOrder.rank("Economie și finanțe"))
+        assertEquals(8, DigestFolderOrder.rank("AI și robotică"))
+        assertEquals(8, DigestFolderOrder.rank("AI: știri"))
     }
 
     @Test
     fun aiMatchesTheWholeWordOnly() {
-        assertEquals(6, DigestFolderOrder.rank("AI"))
-        assertEquals(6, DigestFolderOrder.rank("ai"))
-        assertEquals(6, DigestFolderOrder.rank("Ai"))
+        assertEquals(8, DigestFolderOrder.rank("AI"))
+        assertEquals(8, DigestFolderOrder.rank("ai"))
+        assertEquals(8, DigestFolderOrder.rank("Ai"))
 
         assertNull(DigestFolderOrder.rank("Aisle"))
         assertNull(DigestFolderOrder.rank("Aidan"))
@@ -139,8 +143,8 @@ class DigestFolderOrderTest {
 
     @Test
     fun theEntryOfTheDayIsFirst_underItsNameAndUnderTheFormerOne() {
-        assertEquals(0, DigestFolderOrder.rank("Conceptul zilei"))
-        assertEquals(0, DigestFolderOrder.rank("00 Azi"))
+        assertEquals(2, DigestFolderOrder.rank("Conceptul zilei"))
+        assertEquals(2, DigestFolderOrder.rank("00 Azi"))
         assertEquals(
             listOf("Conceptul zilei", "Republica Moldova", "2 - Tech", "3 - Educatie / Istorie / Stiinta"),
             order("3 - Educatie / Istorie / Stiinta", "Republica Moldova", "2 - Tech", "Conceptul zilei"),

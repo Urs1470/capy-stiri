@@ -43,6 +43,8 @@ android {
         // feeds whose stories get the Explain button.
         buildConfigField("String", "EXPLICA_URL", "\"https://stiri.iupif.org/explica/\"")
         buildConfigField("String", "EXPLICA_FEED_PREFIX", "\"https://news.iupif.org/sectiuni/\"")
+        // The digest read aloud: a feed of the same server, in the drawer's digest group, without Explain.
+        buildConfigField("String", "AUDIO_FEED_PREFIX", "\"https://stiri.iupif.org/explica/audio/\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

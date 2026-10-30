@@ -8,10 +8,13 @@ import java.text.Normalizer
  * folder, so this list is the one place that decides the order of the drawer, of the swipe up to the next
  * section and of "open next feed" after mark all read.
  *
- * "Conceptul zilei" is the category of the entry of the day and goes first (until 2026-10-01 it was "00 Azi", see
- * [FORMER_SECTION_NAMES]).
+ * "Audio" (the digest read aloud, two episodes a day, from 2026-10-29) and "Top 5" (the five stories of the day, from
+ * 2026-10-30) go first: Ion, 2026-10-30, wants them on top. "Conceptul zilei" is the category of the entry of the day and
+ * follows them (until 2026-10-01 it was "00 Azi", see [FORMER_SECTION_NAMES]).
  */
 val DIGEST_SECTION_ORDER = listOf(
+    "Audio",
+    "Top 5",
     "Conceptul zilei",
     "Republica Moldova",
     "România",
