@@ -173,7 +173,7 @@ internal class ComposeScreen private constructor(
 
     // fingers
 
-    private fun touch(action: Int, at: Offset, downTime: Long, eventTime: Long) {
+    fun touch(action: Int, at: Offset, downTime: Long, eventTime: Long) {
         val properties = arrayOf(
             MotionEvent.PointerProperties().apply {
                 id = 0
@@ -201,7 +201,7 @@ internal class ComposeScreen private constructor(
      * A second press soon after a first, at the same place, is a double tap to the selection container. A finger
      * that comes later is not: the clock is moved on by hand before every gesture.
      */
-    private fun newGestureTime(): Long {
+    fun newGestureTime(): Long {
         ShadowSystemClock.advanceBy(Duration.ofSeconds(1))
 
         return SystemClock.uptimeMillis()

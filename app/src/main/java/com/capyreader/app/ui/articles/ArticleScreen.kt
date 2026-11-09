@@ -545,9 +545,7 @@ fun ArticleScreen(
                             if (audio != null && player != null) {
                                 AudioMiniPlayer(
                                     player = player,
-                                    onClick = {
-                                        onSelectArticle(audio.articleID, null)
-                                    },
+                                    onClick = { audioController.expand() },
                                     onDismiss = {
                                         audioController.dismiss()
                                     },

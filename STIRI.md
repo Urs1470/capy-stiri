@@ -84,6 +84,13 @@ the digest comes about 06:10, so yesterday's digest and anything published in th
   matches a section by whole words, ignoring case and diacritics, so "Geopolitică" is the long name and "Aisle" is not
   "AI". `Account.folders` already sorts with `sortedByTitle()`, so the drawer, the swipe up to the next section and
   "open next feed" after mark all read follow it, as does the feed edit dialog.
+- Audio player (2026-11-09, Ion: he could not drag the progress bar, only skip back 30 s): `AudioFullPlayer` is a bottom
+  sheet with the episode's title, a `ProgressSlider` that seeks on release while the left clock shows where the finger
+  would land, elapsed and total time, 30 s back and forward, play/pause, "Open article" and Close. `AudioPlayerHost`
+  draws it once in `App.kt`, next to `NavDisplay`, because on a phone the list and the reader are separate scenes. It
+  opens when a different episode starts playing (`AudioPlayerController.opensPlayerOnPlay`) or when the mini player is
+  tapped; a pause and play on the same episode keeps it closed. The mini player has a thin progress line. Tests:
+  `app/src/test/.../ui/articles/audio/` (time format and clamp, the drag clock on Robolectric, the open rule).
 - Tests: `app/src/test/.../ui/explica/` (client with a fake OkHttp interceptor, ViewModel with a fake API, the
   chips, the daily cap, the day entry, the saved explanations with a temporary folder and a clock moved by hand, the bar
   of the screen on Robolectric) and `app/src/test/.../ui/digest/` (folder order, staleness with an injectable clock, HTML

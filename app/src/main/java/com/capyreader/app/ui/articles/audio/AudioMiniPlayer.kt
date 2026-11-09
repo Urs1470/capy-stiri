@@ -1,6 +1,8 @@
 package com.capyreader.app.ui.articles.audio
 
 import androidx.annotation.OptIn
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -10,6 +12,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -25,7 +28,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.compose.material3.MiniController
 import androidx.media3.ui.compose.material3.buttons.PlayPauseButton
 import androidx.media3.ui.compose.material3.buttons.SeekBackButton
+import androidx.media3.ui.compose.material3.indicator.LinearProgressIndicator
 import com.capyreader.app.R
+
+private val PROGRESS_INSET = 20.dp
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -45,23 +51,39 @@ fun AudioMiniPlayer(
         TintedPainter(painter = headphones, tint = artworkTint)
     }
 
-    MiniController(
-        player = player,
-        bitmapLoader = bitmapLoader,
-        defaultArtwork = defaultArtwork,
-        onClick = onClick,
-        modifier = modifier.padding(horizontal = 8.dp),
-        playerControls = { player ->
-            SeekBackButton(player = player)
-            PlayPauseButton(player = player)
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = stringResource(R.string.audio_player_close),
-                )
-            }
-        },
-    )
+    Box(modifier = modifier.padding(horizontal = 8.dp)) {
+        MiniController(
+            player = player,
+            bitmapLoader = bitmapLoader,
+            defaultArtwork = defaultArtwork,
+            onClick = onClick,
+            playerControls = { player ->
+                SeekBackButton(player = player)
+                PlayPauseButton(player = player)
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.audio_player_close),
+                    )
+                }
+            },
+        )
+
+        // Drawn over the bottom edge of the card; it cannot be touched, so a tap
+        // still reaches the card and opens the full player.
+        Box(
+            contentAlignment = Alignment.BottomCenter,
+            modifier = Modifier.matchParentSize(),
+        ) {
+            LinearProgressIndicator(
+                player = player,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PROGRESS_INSET)
+                    .padding(bottom = 1.dp),
+            )
+        }
+    }
 }
 
 private class TintedPainter(

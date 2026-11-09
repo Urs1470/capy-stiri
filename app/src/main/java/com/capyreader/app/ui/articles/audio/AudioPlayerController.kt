@@ -41,6 +41,19 @@ class AudioPlayerController(
     private val _currentAudio = MutableStateFlow<AudioEnclosure?>(null)
     val currentAudio: StateFlow<AudioEnclosure?> = _currentAudio.asStateFlow()
 
+    private val _isExpanded = MutableStateFlow(false)
+
+    /** Whether the full player sheet is asked for; the sheet itself is drawn once, by the app. */
+    val isExpanded: StateFlow<Boolean> = _isExpanded.asStateFlow()
+
+    fun expand() {
+        _isExpanded.value = true
+    }
+
+    fun collapse() {
+        _isExpanded.value = false
+    }
+
     private fun ensureController(onReady: (MediaController) -> Unit) {
         mediaController?.let {
             if (it.isConnected) {
@@ -100,6 +113,10 @@ class AudioPlayerController(
                 return@launch
             }
 
+            if (opensPlayerOnPlay(currentUrl = currentUrl, newUrl = audio.url)) {
+                _isExpanded.value = true
+            }
+
             _currentAudio.value = audio
             _isBuffering.value = true
 
@@ -135,6 +152,7 @@ class AudioPlayerController(
                 controller.clearMediaItems()
             }
             _currentAudio.value = null
+            _isExpanded.value = false
             _isPlaying.value = false
             _isBuffering.value = false
         }
@@ -147,5 +165,16 @@ class AudioPlayerController(
         mediaController = null
         _player.value = null
         controllerFuture = null
+    }
+
+    companion object {
+        /**
+         * The full player opens by itself when a different episode starts, not when the same one is
+         * played again after a pause: closing the sheet then stays closed. After a stop there is no
+         * current episode, so playing it again counts as new.
+         */
+        internal fun opensPlayerOnPlay(currentUrl: String?, newUrl: String): Boolean {
+            return currentUrl != newUrl
+        }
     }
 }

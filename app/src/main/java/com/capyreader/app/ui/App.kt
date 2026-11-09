@@ -41,6 +41,7 @@ import com.capyreader.app.ui.accounts.LoginScreen
 import com.capyreader.app.ui.articles.ArticleDetailScreen
 import com.capyreader.app.ui.articles.ArticleScreen
 import com.capyreader.app.ui.articles.LocalArticlePaneExpansion
+import com.capyreader.app.ui.articles.audio.AudioPlayerHost
 import com.capyreader.app.ui.articles.detail.CapyPlaceholder
 import com.capyreader.app.ui.articles.media.MediaSceneStrategy
 import com.capyreader.app.ui.articles.media.MediaScreen
@@ -229,6 +230,11 @@ fun App(
                     }
                 }
             )
+
+            // The account modules (and the player in them) exist only once there is a list.
+            if (backStack.any { it is Route.ArticleList }) {
+                AudioPlayerHost(onOpenArticle = { id -> backStack.openArticle(id) })
+            }
           }
           }
         }
