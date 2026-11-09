@@ -26,6 +26,7 @@ import androidx.core.net.toUri
 import com.capyreader.app.R
 import com.capyreader.app.common.AudioEnclosure
 import com.capyreader.app.common.Media
+import com.capyreader.app.common.linkedAudio
 import com.capyreader.app.common.shareImage
 import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.preferences.ReaderImageVisibility
@@ -59,6 +60,7 @@ fun ArticleReader(
     pinToolbars: Boolean,
     onSelectMedia: (media: Media) -> Unit,
     onSelectAudio: (audio: AudioEnclosure) -> Unit = {},
+    onOpenAudio: (audio: AudioEnclosure) -> Unit = onSelectAudio,
     onPauseAudio: () -> Unit = {},
     currentAudioUrl: String? = null,
     isAudioPlaying: Boolean = false,
@@ -123,9 +125,16 @@ fun ArticleReader(
     val currentOnSelectAudio by rememberUpdatedState(onSelectAudio)
     val currentArticle by rememberUpdatedState(article)
 
+    val currentOnOpenAudio by rememberUpdatedState(onOpenAudio)
     val externalUrl = article.url?.toString() ?: article.siteURL
     val openExternalLink = {
-        externalUrl?.let { linkOpener.open(it.toUri()) }
+        // The title of an audio episode links to its MP3: open the app's player instead of the browser.
+        val audio = article.linkedAudio()
+        if (audio != null) {
+            currentOnOpenAudio(audio)
+        } else {
+            externalUrl?.let { linkOpener.open(it.toUri()) }
+        }
         Unit
     }
 

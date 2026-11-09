@@ -91,6 +91,12 @@ the digest comes about 06:10, so yesterday's digest and anything published in th
   opens when a different episode starts playing (`AudioPlayerController.opensPlayerOnPlay`) or when the mini player is
   tapped; a pause and play on the same episode keeps it closed. The mini player has a thin progress line. Tests:
   `app/src/test/.../ui/articles/audio/` (time format and clamp, the drag clock on Robolectric, the open rule).
+- No browser for an episode (2026-11-09, Ion: the title opened the MP3 in Chrome). An audio entry's link is its MP3
+  (`Article.linkedAudio()` in `common/AudioLink.kt`: the link equals an audio enclosure, or its file name ends in an
+  audio extension, which is all a list row knows). Then the reader's title, the "open in browser" swipe, the list
+  row's "open externally" swipe and a feed's "open in browser" flag all call `AudioPlayerController.open`: the sheet
+  shows, a new episode starts, the loaded one keeps its place. A podcast whose link is a web page still opens it.
+  Tests: `common/AudioLinkTest`, `startsOnOpen` in `AudioPlayerControllerTest`.
 - Tests: `app/src/test/.../ui/explica/` (client with a fake OkHttp interceptor, ViewModel with a fake API, the
   chips, the daily cap, the day entry, the saved explanations with a temporary folder and a clock moved by hand, the bar
   of the screen on Robolectric) and `app/src/test/.../ui/digest/` (folder order, staleness with an injectable clock, HTML

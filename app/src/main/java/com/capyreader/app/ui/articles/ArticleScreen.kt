@@ -51,6 +51,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import com.capyreader.app.R
 import com.capyreader.app.common.Saver
 import com.capyreader.app.common.asState
+import com.capyreader.app.common.linkedAudio
 import com.capyreader.app.preferences.AfterReadAllBehavior
 import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.preferences.ArticleListVerticalSwipe
@@ -375,9 +376,10 @@ fun ArticleScreen(
                 focusManager.clearFocus()
             }
 
-            // Feeds flagged "open in browser" skip the in-app reader, matching the widget behavior.
+            // Feeds flagged "open in browser" skip the in-app reader, matching the widget behavior. An audio
+            // episode never does: its link is the MP3, which belongs in the app's player.
             val url = article.url
-            if (article.openInBrowser && url != null) {
+            if (article.openInBrowser && url != null && article.linkedAudio() == null) {
                 linkOpener.open(url.toString().toUri())
             } else {
                 val searchQuery = search.query.takeIf { search.isActive && !it.isNullOrBlank() }
@@ -696,9 +698,13 @@ fun ArticleScreen(
 }
 
 @Composable
-fun rememberArticleActions(viewModel: ArticleScreenViewModel): ArticleActions {
+fun rememberArticleActions(
+    viewModel: ArticleScreenViewModel,
+    audioController: AudioPlayerController = koinInject(),
+): ArticleActions {
     return remember {
         ArticleActions(
+            openAudio = audioController::open,
             markRead = viewModel::markReadAsync,
             markUnread = viewModel::markUnreadAsync,
             star = viewModel::addStarAsync,

@@ -31,7 +31,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Explainer tests
-        run: ./gradlew :app:testFreeDebugUnitTest --tests 'com.capyreader.app.ui.explica.*' --tests 'com.capyreader.app.preferences.ArticleVerticalSwipeTest' --tests 'com.capyreader.app.ui.digest.*' --tests 'com.capyreader.app.ui.articles.audio.*' :capy:test --tests 'com.jocmp.capy.persistence.DigestTodayTest' --build-cache
+        run: ./gradlew :app:testFreeDebugUnitTest --tests 'com.capyreader.app.ui.explica.*' --tests 'com.capyreader.app.preferences.ArticleVerticalSwipeTest' --tests 'com.capyreader.app.ui.digest.*' --tests 'com.capyreader.app.ui.articles.audio.*' --tests 'com.capyreader.app.common.AudioLinkTest' :capy:test --tests 'com.jocmp.capy.persistence.DigestTodayTest' --build-cache
       - name: Signing key
         env:
           ENCODED_RELEASE_KEYSTORE: ${{ secrets.ENCODED_RELEASE_KEYSTORE }}

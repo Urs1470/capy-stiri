@@ -129,6 +129,7 @@ fun ArticleDetailScreen(
                 flattened = viewModel.flattenedArticle,
                 onSelectMedia = onSelectMedia,
                 onSelectAudio = { audio -> audioController.play(audio) },
+                onOpenAudio = { audio -> audioController.open(audio) },
                 onPauseAudio = { audioController.pause() },
                 onSelectArticle = onSelectArticle,
                 currentAudioUrl = currentAudio?.url,

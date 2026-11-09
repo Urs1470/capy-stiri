@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.capyreader.app.common.AudioEnclosure
+import com.capyreader.app.common.linkedAudio
 import com.capyreader.app.common.Media
 import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.preferences.ArticleVerticalSwipe
@@ -68,6 +69,7 @@ fun ArticleView(
     flattened: LinearArticle? = null,
     onSelectMedia: (media: Media) -> Unit,
     onSelectAudio: (audio: AudioEnclosure) -> Unit = {},
+    onOpenAudio: (audio: AudioEnclosure) -> Unit = onSelectAudio,
     onPauseAudio: () -> Unit = {},
     currentAudioUrl: String? = null,
     isAudioPlaying: Boolean = false,
@@ -78,7 +80,7 @@ fun ArticleView(
 ) {
     val enableHorizontalPager by appPreferences.readerOptions.enableHorizontaPagination.collectChangesWithDefault()
     val fullContent = LocalFullContent.current
-    val openLink = articleOpenLink(article)
+    val openLink = articleOpenLink(article, onOpenAudio)
 
     val onToggleFullContent = {
         if (article.fullContent == Article.FullContentState.LOADED) {
@@ -175,6 +177,7 @@ fun ArticleView(
                                 pinToolbars = pinToolbars,
                                 onSelectMedia = onSelectMedia,
                                 onSelectAudio = onSelectAudio,
+                                onOpenAudio = onOpenAudio,
                                 onPauseAudio = onPauseAudio,
                                 currentAudioUrl = currentAudioUrl,
                                 isAudioPlaying = isAudioPlaying,
@@ -285,10 +288,16 @@ fun swipeIcon(
 @Composable
 fun articleOpenLink(
     article: Article,
+    onOpenAudio: (audio: AudioEnclosure) -> Unit = {},
 ): () -> Unit {
     val linkOpener = LocalLinkOpener.current
 
     fun open() {
+        // An episode whose link is the MP3 plays in the app's player, never in the browser.
+        article.linkedAudio()?.let { audio ->
+            onOpenAudio(audio)
+            return
+        }
         val link = article.url?.toString() ?: return
 
         linkOpener.open(link.toUri())

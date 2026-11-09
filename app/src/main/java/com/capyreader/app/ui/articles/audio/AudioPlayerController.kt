@@ -54,6 +54,17 @@ class AudioPlayerController(
         _isExpanded.value = false
     }
 
+    /**
+     * Shows the full player for this episode, for links that point at the episode itself (the article title,
+     * "open externally"). A different episode starts playing; the loaded one only opens the sheet.
+     */
+    fun open(audio: AudioEnclosure) {
+        _isExpanded.value = true
+        if (startsOnOpen(_currentAudio.value?.url, audio.url, mediaController?.isConnected == true)) {
+            play(audio)
+        }
+    }
+
     private fun ensureController(onReady: (MediaController) -> Unit) {
         mediaController?.let {
             if (it.isConnected) {
@@ -175,6 +186,14 @@ class AudioPlayerController(
          */
         internal fun opensPlayerOnPlay(currentUrl: String?, newUrl: String): Boolean {
             return currentUrl != newUrl
+        }
+
+        /**
+         * Opening the player from a link starts the episode unless it is the one already loaded in a live
+         * controller; then the sheet only shows it, paused or playing as it was.
+         */
+        internal fun startsOnOpen(currentUrl: String?, newUrl: String, connected: Boolean): Boolean {
+            return currentUrl != newUrl || !connected
         }
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.capyreader.app.R
 import com.capyreader.app.common.asState
+import com.capyreader.app.common.linkedAudio
 import com.capyreader.app.preferences.AppPreferences
 import com.capyreader.app.preferences.RowSwipeOption
 import com.capyreader.app.ui.LinkOpener
@@ -91,5 +92,11 @@ private fun LinkOpener.openLink(article: Article, actions: ArticleActions) =
 
         actions.markRead(article.id)
 
-        open(url.toString().toUri())
+        // An audio episode's link is its MP3: it opens in the app's player, not in the browser.
+        val audio = article.linkedAudio()
+        if (audio != null) {
+            actions.openAudio(audio)
+        } else {
+            open(url.toString().toUri())
+        }
     }
